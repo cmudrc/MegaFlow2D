@@ -5,15 +5,20 @@ import torch
 from torch_geometric.data import Data, Dataset, download_url, extract_zip
 import numpy as np
 
+
 class MegaFlow2D(Dataset):
-    def __init__(self, root, transform=None, pre_transform=None, mode='mixed'):
-        """
-        Initialize the dataset
-        :param root: root directory of the dataset
-        :param transform: transform to be applied on the data
-        :param pre_transform: transform to be applied on the data before saving it to disk
-        :param mode: 'mixed' or 'circle' or 'ellipse'
-        """
+    """
+    The MegaFlow2D dataset is a collection of 2D flow simulations of different geometries.
+    Current supported geometries include: circle, ellipse, nozzle.
+
+    Input:
+        root: root directory of the dataset
+        transform: transform to be applied on the data
+        pre_transform: transform to be applied on the data before splitting
+        split_scheme: 'full', 'circle', 'ellipse', 'mixed'
+        split_ratio: defult set as [0.5, 0.5] for circle and ellipse respectively
+    """
+    def __init__(self, root, transform=None, pre_transform=None, split_scheme='mixed', split_ratio=None):
         self._indices = None
         self.root = root
         # self.split = split
@@ -29,13 +34,19 @@ class MegaFlow2D(Dataset):
         # self.las_data_list = os.listdir(os.path.join(self.raw_data_dir, 'las'))
         # self.has_data_list = os.listdir(os.path.join(self.raw_data_dir, 'has'))
         # self.mesh_data_list = os.listdir(os.path.join(self.raw_data_dir, 'mesh'))
-        self.mode = mode
-        if self.mode == 'mixed':
+        self.split_scheme = split_scheme
+        if self.split_scheme == 'full':
             self.data_list = self.processed_file_names
-        elif self.mode == 'circle':
+        elif self.split_scheme == 'circle':
             self.data_list = self.circle_data_list
-        elif self.mode == 'ellipse':
+        elif self.split_scheme == 'ellipse':
             self.data_list = self.ellipse_data_list
+        elif self.split_scheme == 'mixed':
+            # split the dataset according to the split_ratio
+            if split_ratio is None:
+                split_ratio = [0.5, 0.5]
+            self.data_list = self.circle_data_list[:int(len(self.circle_data_list) * split_ratio[0])] + \
+                                self.ellipse_data_list[:int(len(self.ellipse_data_list) * split_ratio[1])]
 
     @property
     def raw_file_names(self):
@@ -51,16 +62,6 @@ class MegaFlow2D(Dataset):
     @property
     def is_processed(self):
         return os.path.exists(self.processed_data_dir)
-
-    @property
-    def split(self, idx):
-        """
-        Split the entire dataset into 40 subsets with uniform distribution
-        .param idx: index of the subset
-        """
-        if self._indices is None:
-            self._indices = torch.randperm(len(self))
-        return self._indices[idx]
 
     def len(self):
         return len(self.data_list)
@@ -157,3 +158,10 @@ class MegaFlow2D(Dataset):
             data = self.transform(data)
         return data, data_name
 
+
+class MegaFlow2DSubset(MegaFlow2D):
+    """
+    This subset splits the entire dataset into 40 subsets, which is initialized via indices.
+    """
+    def __init__(self, root, indices, transform=None):
+        raise NotImplementedError
