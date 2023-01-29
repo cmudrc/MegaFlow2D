@@ -1,6 +1,6 @@
 import os
 import sys
-from multiprocessing import Pool, Process
+from multiprocessing import Process
 
 import torch
 from torch_geometric.data import Data, Dataset, download_url, extract_zip

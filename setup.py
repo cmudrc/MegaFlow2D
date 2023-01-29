@@ -33,11 +33,6 @@ setuptools.setup(
         'tqdm>=4.53.0',
         'scikit-learn>=0.20.0',
         'scipy>=1.5.4',
-        'torch-cluster>=1.5.8',
-        'torch-geometric>=1.6.3',
-        'torch-scatter>=2.0.5',
-        'torch-sparse>=0.6.8',
-        'torch-spline-conv>=1.2.0'
     ],
     license='MIT',
     packages=setuptools.find_packages(exclude=['examples', 'examples.models']),
