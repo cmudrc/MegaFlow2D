@@ -5,6 +5,7 @@ from multiprocessing import Pool, Process
 import torch
 from torch_geometric.data import Data, Dataset, download_url, extract_zip
 import numpy as np
+from tqdm import tqdm
 
 
 class MegaFlow2D(Dataset):
@@ -15,18 +16,25 @@ class MegaFlow2D(Dataset):
     Input:
         root: root directory of the dataset
         transform: transform to be applied on the data
-        pre_transform: transform to be applied on the data before splitting
+        pre_transform: transform to be applied on the data during preprocessing, e.g. splitting into individual graphs 
+                    or dividing in temporal sequence
         split_scheme: 'full', 'circle', 'ellipse', 'mixed'
         split_ratio: defult set as [0.5, 0.5] for circle and ellipse respectively
     """
-    def __init__(self, root, transform=None, pre_transform=None, split_scheme='mixed', split_ratio=None):
+    def __init__(self, root, download, transform=None, pre_transform=None, split_scheme='mixed', split_ratio=None):
         self._indices = None
         self.root = root
         # self.split = split
         self.transforms = transform
         self.pre_transform = pre_transform
+        if download:
+            self.download()
         self.raw_data_dir = os.path.join(self.root, 'raw')
         self.processed_data_dir = os.path.join(self.root, 'processed')
+        if not self.is_processed:
+            p = Process(target=self.process)
+            p.start()
+            p.join()
         self.data_list = self.processed_file_names
 
         self.circle_data_list = [name for name in self.data_list if name.split('_')[0] == 'circle']
@@ -78,7 +86,7 @@ class MegaFlow2D(Dataset):
         las_data_list = os.listdir(os.path.join(self.raw_data_dir, 'las'))
         has_data_list = os.listdir(os.path.join(self.raw_data_dir, 'has'))
         # mesh_data_list = os.listdir(os.path.join(self.raw_data_dir, 'mesh'))
-        for las_data_name, has_data_name in zip(las_data_list, has_data_list):
+        for las_data_name, has_data_name in tqdm(zip(las_data_list, has_data_list)):
             las_data = np.load(os.path.join(self.raw_dir, 'las', las_data_name))
             has_data = np.load(os.path.join(self.raw_dir, 'has', has_data_name))
 
