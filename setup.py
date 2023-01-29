@@ -16,7 +16,7 @@ setuptools.setup(
     version=__version__,
     author="Wenzhuo Xu, Christopher McComb, and Noelia Grande Gutierrez",
     author_email="wxu2@andrew.cmu.edu",
-    url="",
+    url="https://github.com/cmudrc/MegaFlow2D",
     description="MegaFlow2D: A Large-Scale Dataset for 2D Flow Simulation",
     long_description=long_description,
     long_description_content_type="text/markdown",
