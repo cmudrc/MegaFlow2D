@@ -1,5 +1,6 @@
 import os
 import sys
+from multiprocessing import Pool, Process
 
 import torch
 from torch_geometric.data import Data, Dataset, download_url, extract_zip
@@ -124,7 +125,7 @@ class MegaFlow2D(Dataset):
             data = Data(x=node_data_list, y=val_data_list, edge_index=edge_index.t().contiguous(), edge_attr=edge_attr, pos=node_pos_list)
             data_name = str1 + '_' + str2 + '_' + str4
             torch.save(data, os.path.join(self.processed_data_dir, data_name + '.pt'))
-        self.data_list = os.listdir(self.processed_data_dir)
+        self.data_list = self.processed_file_names
 
     def transform(self, data):
         if self.transforms == 'error_estimation':
@@ -137,7 +138,9 @@ class MegaFlow2D(Dataset):
 
     def get(self, idx):
         if not self.is_processed:
-            self.process()
+            p = Process(target=self.process)
+            p.start()
+            p.join()
         
         data = torch.load(os.path.join(self.processed_data_dir, self.data_list[idx]))
         
@@ -148,7 +151,9 @@ class MegaFlow2D(Dataset):
     def get_eval(self, idx):
         # same as get, but returns data name as well
         if not self.is_processed:
-            self.process()
+            p = Process(target=self.process)
+            p.start()
+            p.join()
 
         data = torch.load(os.path.join(self.processed_data_dir, self.data_list[idx]))
         str1, str2, str4 = self.data_list[idx].split('_')
