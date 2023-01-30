@@ -1,11 +1,13 @@
 import os
 import sys
 import multiprocessing as mp
+from itertools import repeat
 
 import torch
 from torch_geometric.data import Data, Dataset, download_url, extract_zip
 import numpy as np
 from tqdm import tqdm
+from megaflow.common.utils import process_file_list
 
 
 class MegaFlow2D(Dataset):
@@ -31,9 +33,9 @@ class MegaFlow2D(Dataset):
             self.download()
         self.raw_data_dir = os.path.join(self.root, 'raw')
         self.processed_data_dir = os.path.join(self.root, 'processed')
+        self.data_list = self.processed_file_names
         if not self.is_processed:
             self.process()
-        self.data_list = self.processed_file_names
 
         self.circle_data_list = [name for name in self.data_list if name.split('_')[0] == 'circle']
         self.ellipse_data_list = [name for name in self.data_list if name.split('_')[0] == 'ellipse']
@@ -69,63 +71,13 @@ class MegaFlow2D(Dataset):
     @property
     def is_processed(self):
         return os.path.exists(self.processed_data_dir)
-
-    @property
-    def process_file_list(self, las_data_list, has_data_list):
-        for las_data_name, has_data_name in tqdm(zip(las_data_list, has_data_list)):
-            las_data = np.load(os.path.join(self.raw_dir, 'las', las_data_name))
-            has_data = np.load(os.path.join(self.raw_dir, 'has', has_data_name))
-
-            str1, str2, str3, str4 = las_data_name.split('_')
-            mesh_name = str1 + '_' + str2 + '.npz'
-            mesh_data = np.load(os.path.join(self.raw_dir, 'mesh', mesh_name))
-            node_data = np.zeros(3)
-            val_data = np.zeros(3)
-            for j in range(len(mesh_data['x'])):
-                node_data[0] = las_data['ux'][j]
-                node_data[1] = las_data['uy'][j]
-                node_data[2] = las_data['p'][j]
-
-                val_data[0] = has_data['ux'][j]
-                val_data[1] = has_data['uy'][j]
-                val_data[2] = has_data['p'][j]
-
-                if j == 0:
-                    node_data_list = np.array([node_data])
-                    val_data_list = np.array([val_data])
-                else:
-                    node_data_list = np.append(node_data_list, np.array([node_data]), axis=0)
-                    val_data_list = np.append(val_data_list, np.array([val_data]), axis=0)
-
-            node_data_list = torch.tensor(node_data_list, dtype=torch.float)
-            val_data_list = torch.tensor(val_data_list, dtype=torch.float)
-            edge_index = np.array(mesh_data['edges'])
-            edge_index = torch.tensor(edge_index, dtype=torch.long)
-            edge_attr = np.array(mesh_data['edge_properties'])
-            edge_attr = torch.tensor(edge_attr, dtype=torch.float)
-
-            node_pos = np.zeros(2)
-            for j in range(len(mesh_data['x'])):
-                node_pos[0] = mesh_data['x'][j]
-                node_pos[1] = mesh_data['y'][j]
-
-                if j == 0:
-                    node_pos_list = np.array([node_pos])
-                else:
-                    node_pos_list = np.append(node_pos_list, np.array([node_pos]), axis=0)
-
-            node_pos_list = torch.tensor(node_pos_list, dtype=torch.float)
-
-            data = Data(x=node_data_list, y=val_data_list, edge_index=edge_index.t().contiguous(), edge_attr=edge_attr, pos=node_pos_list)
-            data_name = str1 + '_' + str2 + '_' + str4
-            torch.save(data, os.path.join(self.processed_data_dir, data_name + '.pt'))
-
+    
     def len(self):
         return len(self.data_list)
 
     def download(self, dir=None):
         url = ''
-        path = download_url(url, self.root)
+        path = download_url(url, dir)
         extract_zip(path, self.root)
 
     def process(self):
@@ -138,11 +90,13 @@ class MegaFlow2D(Dataset):
         num_proc = mp.cpu_count()
         las_data_list = np.array_split(las_data_list, num_proc)
         has_data_list = np.array_split(has_data_list, num_proc)
-        # mesh_data_list = np.array_split(mesh_data_list, num_proc)
+        
         # create a pool of processes
         pool = mp.Pool(num_proc)
-        # run the process_file_list function in parallel
-        pool.starmap(self.process_file_list, las_data_list, has_data_list)
+
+        # start the processes
+        pool.starmap(process_file_list, zip(repeat(self.raw_data_dir, num_proc), repeat(self.processed_data_dir, num_proc), las_data_list, has_data_list))
+        
         # close the pool and wait for the work to finish
         pool.close()
         pool.join()
