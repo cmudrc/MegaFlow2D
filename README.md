@@ -11,7 +11,7 @@ The package contains:
 ## Installation
 The MegaFlow dataset can be installed by pip:
 ```bash
-pip install megaflow
+pip install MegaFlow2D
 ```
 
 Running `pip install` would automatically configure package dependencies, however to build graphical models [torch-geometric](https://pytorch-geometric.readthedocs.io/en/latest/) needs to be installed manually.

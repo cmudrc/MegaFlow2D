@@ -95,7 +95,8 @@ class MegaFlow2D(Dataset):
         pool = mp.Pool(num_proc)
 
         # start the processes
-        pool.starmap(process_file_list, zip(repeat(self.raw_data_dir, num_proc), repeat(self.processed_data_dir, num_proc), las_data_list, has_data_list))
+        for i in range(num_proc):
+            pool.apply_async(process_file_list, args=(self.raw_data_dir, self.processed_data_dir, las_data_list[i], has_data_list[i]))
         
         # close the pool and wait for the work to finish
         pool.close()
