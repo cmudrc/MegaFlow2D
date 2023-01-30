@@ -1,6 +1,6 @@
 import os
 import sys
-from multiprocessing import Process
+import multiprocessing as mp
 
 import torch
 from torch_geometric.data import Data, Dataset, download_url, extract_zip
@@ -32,9 +32,7 @@ class MegaFlow2D(Dataset):
         self.raw_data_dir = os.path.join(self.root, 'raw')
         self.processed_data_dir = os.path.join(self.root, 'processed')
         if not self.is_processed:
-            p = Process(target=self.process)
-            p.start()
-            p.join()
+            self.process()
         self.data_list = self.processed_file_names
 
         self.circle_data_list = [name for name in self.data_list if name.split('_')[0] == 'circle']
@@ -72,20 +70,8 @@ class MegaFlow2D(Dataset):
     def is_processed(self):
         return os.path.exists(self.processed_data_dir)
 
-    def len(self):
-        return len(self.data_list)
-
-    def download(self, dir=None):
-        url = ''
-        path = download_url(url, self.root)
-        extract_zip(path, self.root)
-
-    def process(self):
-        # Read mesh solution into graph structure
-        os.makedirs(self.processed_data_dir, exist_ok=True)
-        las_data_list = os.listdir(os.path.join(self.raw_data_dir, 'las'))
-        has_data_list = os.listdir(os.path.join(self.raw_data_dir, 'has'))
-        # mesh_data_list = os.listdir(os.path.join(self.raw_data_dir, 'mesh'))
+    @property
+    def process_file_list(self, las_data_list, has_data_list):
         for las_data_name, has_data_name in tqdm(zip(las_data_list, has_data_list)):
             las_data = np.load(os.path.join(self.raw_dir, 'las', las_data_name))
             has_data = np.load(os.path.join(self.raw_dir, 'has', has_data_name))
@@ -133,6 +119,34 @@ class MegaFlow2D(Dataset):
             data = Data(x=node_data_list, y=val_data_list, edge_index=edge_index.t().contiguous(), edge_attr=edge_attr, pos=node_pos_list)
             data_name = str1 + '_' + str2 + '_' + str4
             torch.save(data, os.path.join(self.processed_data_dir, data_name + '.pt'))
+
+    def len(self):
+        return len(self.data_list)
+
+    def download(self, dir=None):
+        url = ''
+        path = download_url(url, self.root)
+        extract_zip(path, self.root)
+
+    def process(self):
+        # Read mesh solution into graph structure
+        os.makedirs(self.processed_data_dir, exist_ok=True)
+        las_data_list = os.listdir(os.path.join(self.raw_data_dir, 'las'))
+        has_data_list = os.listdir(os.path.join(self.raw_data_dir, 'has'))
+        # mesh_data_list = os.listdir(os.path.join(self.raw_data_dir, 'mesh'))
+        # split the list according to the number of processors and process the data in parallel
+        num_proc = mp.cpu_count()
+        las_data_list = np.array_split(las_data_list, num_proc)
+        has_data_list = np.array_split(has_data_list, num_proc)
+        # mesh_data_list = np.array_split(mesh_data_list, num_proc)
+        # create a pool of processes
+        pool = mp.Pool(num_proc)
+        # run the process_file_list function in parallel
+        pool.starmap(self.process_file_list, las_data_list, has_data_list)
+        # close the pool and wait for the work to finish
+        pool.close()
+        pool.join()
+
         self.data_list = self.processed_file_names
 
     def transform(self, data):
@@ -146,9 +160,7 @@ class MegaFlow2D(Dataset):
 
     def get(self, idx):
         if not self.is_processed:
-            p = Process(target=self.process)
-            p.start()
-            p.join()
+            self.process()
         
         data = torch.load(os.path.join(self.processed_data_dir, self.data_list[idx]))
         
@@ -159,9 +171,7 @@ class MegaFlow2D(Dataset):
     def get_eval(self, idx):
         # same as get, but returns data name as well
         if not self.is_processed:
-            p = Process(target=self.process)
-            p.start()
-            p.join()
+            self.process()
 
         data = torch.load(os.path.join(self.processed_data_dir, self.data_list[idx]))
         str1, str2, str4 = self.data_list[idx].split('_')

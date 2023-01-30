@@ -35,7 +35,7 @@ setuptools.setup(
         'scipy>=1.5.4',
     ],
     license='MIT',
-    packages=setuptools.find_packages(exclude=['examples', 'examples.models']),
+    packages=setuptools.find_packages(exclude=['examples', 'examples.model']),
     classifiers=[
         'Topic :: Scientific/Engineering :: Artificial Intelligence',
         'Intended Audience :: Science/Research',
