@@ -1,12 +1,10 @@
 import os
 import sys
 import multiprocessing as mp
-from itertools import repeat
 
 import torch
 from torch_geometric.data import Data, Dataset, download_url, extract_zip
 import numpy as np
-from tqdm import tqdm
 from megaflow.common.utils import process_file_list
 
 

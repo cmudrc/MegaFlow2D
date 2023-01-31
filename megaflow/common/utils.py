@@ -1,12 +1,11 @@
 import os
-from argparse import ArgumentParser
 from datetime import datetime
 import torch
 from torch_geometric.data import Data
 # from model import *
 # from dataset import *
 import numpy as np
-import tqdm
+from tqdm import tqdm
 
 
 def get_cur_time():
