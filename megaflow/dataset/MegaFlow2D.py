@@ -70,7 +70,13 @@ class MegaFlow2D(Dataset):
 
     @property
     def is_processed(self):
-        return os.path.exists(self.processed_data_dir)
+        if os.path.exists(self.processed_data_dir):
+            if len(self.processed_file_names) == 0:
+                return False
+            else:
+                return True
+        else:
+            return False
     
     def len(self):
         return len(self.data_list)

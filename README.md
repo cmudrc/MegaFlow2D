@@ -33,5 +33,5 @@ print('Number of nodes: {}, number of edges: {}'.format(sample.num_nodes, sample
 ## Using the example scripts
 We provide an example script for training a super-resolution model on the MegaFlow2D dataset. The script can be found in the `examples` directory. The script can be run by (one configuration example):
 ```bash
-python examples/train.py --root /path/to/your/directory --dataset MegaFlow2D --model FlowMLError --epochs 100 --batch_size 32 
+python examples/train.py --root /path/to/your/directory --dataset MegaFlow2D --tranform normalize --model FlowMLError --epochs 100 --batch_size 32 
 ```
