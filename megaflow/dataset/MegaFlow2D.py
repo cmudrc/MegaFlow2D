@@ -80,7 +80,7 @@ class MegaFlow2D(Dataset):
         return len(self.data_list)
 
     def download(self, dir=None):
-        url = ''
+        url = 'https://huggingface.co/datasets/cmudrc/MegaFlow2D/resolve/main/data.zip'
         path = download_url(url, dir)
         extract_zip(path, self.root)
 
