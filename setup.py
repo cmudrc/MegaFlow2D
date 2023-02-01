@@ -14,7 +14,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setuptools.setup(
     name="MegaFlow2D",
     version=__version__,
-    author="Wenzhuo Xu, Christopher McComb, and Noelia Grande Gutierrez",
+    author=["Wenzhuo Xu", "Noelia Grande Gutierrez", "Christopher McComb"],
     author_email="wxu2@andrew.cmu.edu",
     url="https://github.com/cmudrc/MegaFlow2D",
     description="MegaFlow2D: A Large-Scale Dataset for 2D Flow Simulation",
