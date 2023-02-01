@@ -5,7 +5,7 @@ import multiprocessing as mp
 import torch
 from torch_geometric.data import Data, Dataset, download_url, extract_zip
 import numpy as np
-from megaflow.common.utils import process_file_list
+from megaflow.common.utils import process_file_list, progress_bar
 
 
 class MegaFlow2D(Dataset):
@@ -89,19 +89,28 @@ class MegaFlow2D(Dataset):
         os.makedirs(self.processed_data_dir, exist_ok=True)
         las_data_list = os.listdir(os.path.join(self.raw_data_dir, 'las'))
         has_data_list = os.listdir(os.path.join(self.raw_data_dir, 'has'))
+        data_len = len(las_data_list)
         # mesh_data_list = os.listdir(os.path.join(self.raw_data_dir, 'mesh'))
         # split the list according to the number of processors and process the data in parallel
         num_proc = mp.cpu_count()
         las_data_list = np.array_split(las_data_list, num_proc)
         has_data_list = np.array_split(has_data_list, num_proc)
         
+        # organize the data list for each process and combine into pool.map input
+        data_list = []
+        for i in range(num_proc - 1):
+            data_list.append([self.raw_data_dir, self.processed_data_dir, las_data_list[i], has_data_list[i]])
+
         # create a pool of processes
-        pool = mp.Pool(num_proc)
+        pool = mp.Pool(num_proc - 1)
+                
+        # create a new process for the progress bar
+        p = mp.Process(target=progress_bar, args=(self.processed_data_dir, data_len))
+        p.start()
 
         # start the processes
-        for i in range(num_proc):
-            pool.apply_async(process_file_list, args=(self.raw_data_dir, self.processed_data_dir, las_data_list[i], has_data_list[i]))
-        
+        pool.map(process_file_list, data_list)
+
         # close the pool and wait for the work to finish
         pool.close()
         pool.join()

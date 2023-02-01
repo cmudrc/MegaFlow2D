@@ -23,11 +23,14 @@ The MegaFlow package provides a simple interface for initializing and loading th
 ```py
 from megaflow.dataset import MegaFlow2D
 
-dataset = MegaFlow2D(root='/path/to/your/directory', download=True)
+if __name__ == '__main__':
+    dataset = MegaFlow2D(root='/path/to/your/directory', download=True)
+    # if the dataset is not processed, the process function will be called automatically. 
+    # to facilitate multi-thread processing, be sure to exceute the process function in '__main__'.
 
-# get one sample
-sample = dataset.get(0)
-print('Number of nodes: {}, number of edges: {}'.format(sample.num_nodes, sample.num_edges))
+    # get one sample
+    sample = dataset.get(0)
+    print('Number of nodes: {}, number of edges: {}'.format(sample.num_nodes, sample.num_edges))
 ```
 
 ## Using the example scripts
