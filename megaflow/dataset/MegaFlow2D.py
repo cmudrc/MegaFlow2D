@@ -21,7 +21,7 @@ class MegaFlow2D(Dataset):
         split_scheme: 'full', 'circle', 'ellipse', 'mixed'
         split_ratio: defult set as [0.5, 0.5] for circle and ellipse respectively
     """
-    def __init__(self, root, download, transform=None, pre_transform=None, split_scheme='mixed', split_ratio=None):
+    def __init__(self, root, download, transform, pre_transform, split_scheme='mixed', split_ratio=None):
         self._indices = None
         self.root = root
         # self.split = split
@@ -79,9 +79,9 @@ class MegaFlow2D(Dataset):
     def len(self):
         return len(self.data_list)
 
-    def download(self, dir=None):
+    def download(self):
         url = 'https://huggingface.co/datasets/cmudrc/MegaFlow2D/resolve/main/data.zip'
-        path = download_url(url, dir)
+        path = download_url(url, self.root)
         extract_zip(path, self.root)
 
     def process(self):
