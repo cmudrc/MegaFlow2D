@@ -132,7 +132,7 @@ class MegaFlow2D(Dataset):
         
         data = torch.load(os.path.join(self.processed_data_dir, self.data_list[idx]))
         
-        if self.transform is not None:
+        if self.transforms is not None:
             data = self.transform(data)
         return data
 
