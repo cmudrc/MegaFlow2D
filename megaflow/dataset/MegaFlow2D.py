@@ -89,17 +89,19 @@ class MegaFlow2D(Dataset):
         os.makedirs(self.processed_data_dir, exist_ok=True)
         las_data_list = os.listdir(os.path.join(self.raw_data_dir, 'las'))
         has_data_list = os.listdir(os.path.join(self.raw_data_dir, 'has'))
+        has_original_data_list = os.listdir(os.path.join(self.raw_data_dir, 'has_original'))
         data_len = len(las_data_list)
         # mesh_data_list = os.listdir(os.path.join(self.raw_data_dir, 'mesh'))
         # split the list according to the number of processors and process the data in parallel
         num_proc = mp.cpu_count()
         las_data_list = np.array_split(las_data_list, num_proc)
         has_data_list = np.array_split(has_data_list, num_proc)
+        has_original_data_list = np.array_split(has_original_data_list, num_proc)
         
         # organize the data list for each process and combine into pool.map input
         data_list = []
         for i in range(num_proc - 1):
-            data_list.append([self.raw_data_dir, self.processed_data_dir, las_data_list[i], has_data_list[i]])
+            data_list.append([self.raw_data_dir, self.processed_data_dir, las_data_list[i], has_data_list[i], has_original_data_list[i]])
 
         # create a pool of processes
         pool = mp.Pool(num_proc - 1)
