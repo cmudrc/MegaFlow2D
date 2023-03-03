@@ -20,12 +20,13 @@ def process_file_list(data_list):
     has_data_list = data_list[3]
     # p = tqdm(total=len(las_data_list), disable=False)
     for las_data_name, has_data_name in zip(las_data_list, has_data_list):
+        # process las graph
         las_data = np.load(os.path.join(raw_data_dir, 'las', las_data_name))
         has_data = np.load(os.path.join(raw_data_dir, 'has', has_data_name))
 
         str1, str2, str3, str4 = las_data_name.split('_')
         mesh_name = str1 + '_' + str2 + '.npz'
-        mesh_data = np.load(os.path.join(raw_data_dir, 'mesh', mesh_name))
+        mesh_data = np.load(os.path.join(raw_data_dir, 'mesh', 'las', mesh_name))
         node_data = np.zeros(3)
         val_data = np.zeros(3)
         for j in range(len(mesh_data['x'])):
@@ -64,9 +65,50 @@ def process_file_list(data_list):
         node_pos_list = torch.tensor(node_pos_list, dtype=torch.float)
 
         data = Data(x=node_data_list, y=val_data_list, edge_index=edge_index.t().contiguous(), edge_attr=edge_attr, pos=node_pos_list)
-        data_name = str1 + '_' + str2 + '_' + str4
-        torch.save(data, os.path.join(processed_data_dir, data_name + '.pt'))
-        # p.update(1)
+        geo_name = str1 + '_' + str2
+        data_name = str1 + '_' + str2 + '_' + str4 - '.npz'
+        las_save_dir = os.path.join(processed_data_dir, geo_name, "las")
+        os.makedirs(las_save_dir, exist_ok=True)
+        torch.save(data, os.path.join(las_save_dir, data_name + '.pt'))
+
+        # process has graph
+        has_data_original = np.load(os.path.join(raw_data_dir, 'has_original', has_data_name))
+        mesh_data = np.load(os.path.join(raw_data_dir, 'mesh', 'has', mesh_name))
+        node_data = np.zeros(3)
+        for j in range(len(mesh_data['x'])):
+            node_data[0] = has_data_original['ux'][j]
+            node_data[1] = has_data_original['uy'][j]
+            node_data[2] = has_data_original['p'][j]
+
+            if j == 0:
+                node_data_list = np.array([node_data])
+            else:
+                node_data_list = np.append(node_data_list, np.array([node_data]), axis=0)
+
+        node_data_list = torch.tensor(node_data_list, dtype=torch.float)
+        edge_index = np.array(mesh_data['edges'])
+        edge_index = torch.tensor(edge_index, dtype=torch.long)
+        edge_attr = np.array(mesh_data['edge_properties'])
+        edge_attr = torch.tensor(edge_attr, dtype=torch.float)
+        
+        node_pos = np.zeros(2)
+        for j in range(len(mesh_data['x'])):
+            node_pos[0] = mesh_data['x'][j]
+            node_pos[1] = mesh_data['y'][j]
+
+            if j == 0:
+                node_pos_list = np.array([node_pos])
+            else:
+                node_pos_list = np.append(node_pos_list, np.array([node_pos]), axis=0)
+
+        node_pos_list = torch.tensor(node_pos_list, dtype=torch.float)
+
+        data = Data(x=node_data_list, edge_index=edge_index.t().contiguous(), edge_attr=edge_attr, pos=node_pos_list)
+        geo_name = str1 + '_' + str2
+        data_name = str1 + '_' + str2 + '_' + str4 - '.npz'
+        has_save_dir = os.path.join(processed_data_dir, geo_name, "has")
+        os.makedirs(has_save_dir, exist_ok=True)
+        torch.save(data, os.path.join(has_save_dir, data_name + '.pt'))
 
     # p.close()
 
