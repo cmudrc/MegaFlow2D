@@ -30,13 +30,17 @@ class MegaFlow2D(Dataset):
         if download:
             self.download()
         self.raw_data_dir = os.path.join(self.root, 'raw')
-        self.processed_data_dir = os.path.join(self.root, 'processed')
+        self.processed_las_data_dir = os.path.join(self.root, 'processed', 'las')
+        self.processed_has_data_dir = os.path.join(self.root, 'processed', 'has')
         self.data_list = self.processed_file_names
         if not self.is_processed:
             self.process()
 
-        self.circle_data_list = [name for name in self.data_list if name.split('_')[0] == 'circle']
-        self.ellipse_data_list = [name for name in self.data_list if name.split('_')[0] == 'ellipse']
+        self.circle_data_list = [name for name in self.data_list if name.split('_')[1] == 'circle']
+        self.ellipse_data_list = [name for name in self.data_list if name.split('_')[1] == 'ellipse']
+
+        # self.circle_low_res_data_list = [name for name in self.data_list if name.split('_')[0] == 'las']
+        # self.high_res_data_list = [name for name in self.data_list if name.split('_')[0] == 'has']
 
         # self.las_data_list = os.listdir(os.path.join(self.raw_data_dir, 'las'))
         # self.has_data_list = os.listdir(os.path.join(self.raw_data_dir, 'has'))
@@ -61,14 +65,14 @@ class MegaFlow2D(Dataset):
 
     @property
     def processed_file_names(self):
-        if os.path.exists(self.processed_data_dir):
-            return os.listdir(self.processed_data_dir)
+        if os.path.exists(self.processed_las_data_dir):
+            return os.listdir(self.processed_las_data_dir)
         else:
             return []
 
     @property
     def is_processed(self):
-        if os.path.exists(self.processed_data_dir):
+        if os.path.exists(self.processed_las_data_dir):
             if len(self.processed_file_names) == 0:
                 return False
             else:
@@ -86,7 +90,8 @@ class MegaFlow2D(Dataset):
 
     def process(self):
         # Read mesh solution into graph structure
-        os.makedirs(self.processed_data_dir, exist_ok=True)
+        os.makedirs(self.processed_las_data_dir, exist_ok=True)
+        os.makedirs(self.processed_has_data_dir, exist_ok=True)
         las_data_list = os.listdir(os.path.join(self.raw_data_dir, 'las'))
         has_data_list = os.listdir(os.path.join(self.raw_data_dir, 'has'))
         has_original_data_list = os.listdir(os.path.join(self.raw_data_dir, 'has_original'))
@@ -101,7 +106,7 @@ class MegaFlow2D(Dataset):
         # organize the data list for each process and combine into pool.map input
         data_list = []
         for i in range(num_proc - 1):
-            data_list.append([self.raw_data_dir, self.processed_data_dir, las_data_list[i], has_data_list[i], has_original_data_list[i]])
+            data_list.append([self.raw_data_dir, self.processed_las_data_dir, self.processed_has_data_dir, las_data_list[i], has_data_list[i], has_original_data_list[i]])
 
         # create a pool of processes
         pool = mp.Pool(num_proc - 1)
@@ -129,7 +134,8 @@ class MegaFlow2D(Dataset):
         return data
 
     def get(self, idx):
-        data = torch.load(os.path.join(self.processed_data_dir, self.data_list[idx]))
+        # data_name = self.data_list[idx]
+        data = torch.load(os.path.join(self.processed_las_data_dir, self.data_list[idx]))
         
         if self.transforms is not None:
             data = self.transform(data)
@@ -137,9 +143,6 @@ class MegaFlow2D(Dataset):
 
     def get_eval(self, idx):
         # same as get, but returns data name as well
-        if not self.is_processed:
-            self.process()
-
         data = torch.load(os.path.join(self.processed_data_dir, self.data_list[idx]))
         str1, str2, str4 = self.data_list[idx].split('_')
         data_name = str1 + '_' + str2 + '_' + str4

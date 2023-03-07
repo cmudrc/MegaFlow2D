@@ -15,9 +15,12 @@ def get_cur_time():
 
 def process_file_list(data_list):
     raw_data_dir = data_list[0]
-    processed_data_dir = data_list[1]
-    las_data_list = data_list[2]
-    has_data_list = data_list[3]
+    las_save_dir = data_list[1]
+    has_save_dir = data_list[2]
+    las_data_list = data_list[3]
+    has_data_list = data_list[4]
+    # os.makedirs(las_save_dir, exist_ok=True)
+    # os.makedirs(has_save_dir, exist_ok=True)
     # p = tqdm(total=len(las_data_list), disable=False)
     for las_data_name, has_data_name in zip(las_data_list, has_data_list):
         # process las graph
@@ -65,10 +68,8 @@ def process_file_list(data_list):
         node_pos_list = torch.tensor(node_pos_list, dtype=torch.float)
 
         data = Data(x=node_data_list, y=val_data_list, edge_index=edge_index.t().contiguous(), edge_attr=edge_attr, pos=node_pos_list)
-        geo_name = str1 + '_' + str2
+        # geo_name = str1 + '_' + str2
         data_name = str1 + '_' + str2 + '_' + str4 - '.npz'
-        las_save_dir = os.path.join(processed_data_dir, geo_name, "las")
-        os.makedirs(las_save_dir, exist_ok=True)
         torch.save(data, os.path.join(las_save_dir, data_name + '.pt'))
 
         # process has graph
@@ -104,10 +105,8 @@ def process_file_list(data_list):
         node_pos_list = torch.tensor(node_pos_list, dtype=torch.float)
 
         data = Data(x=node_data_list, edge_index=edge_index.t().contiguous(), edge_attr=edge_attr, pos=node_pos_list)
-        geo_name = str1 + '_' + str2
+        # geo_name = str1 + '_' + str2
         data_name = str1 + '_' + str2 + '_' + str4 - '.npz'
-        has_save_dir = os.path.join(processed_data_dir, geo_name, "has")
-        os.makedirs(has_save_dir, exist_ok=True)
         torch.save(data, os.path.join(has_save_dir, data_name + '.pt'))
 
     # p.close()
