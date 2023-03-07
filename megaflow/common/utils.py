@@ -69,7 +69,7 @@ def process_file_list(data_list):
 
         data = Data(x=node_data_list, y=val_data_list, edge_index=edge_index.t().contiguous(), edge_attr=edge_attr, pos=node_pos_list)
         # geo_name = str1 + '_' + str2
-        data_name = str1 + '_' + str2 + '_' + str4 - '.npz'
+        data_name = str1 + '_' + str2 + '_' + str4 
         torch.save(data, os.path.join(las_save_dir, data_name + '.pt'))
 
         # process has graph
@@ -106,7 +106,7 @@ def process_file_list(data_list):
 
         data = Data(x=node_data_list, edge_index=edge_index.t().contiguous(), edge_attr=edge_attr, pos=node_pos_list)
         # geo_name = str1 + '_' + str2
-        data_name = str1 + '_' + str2 + '_' + str4 - '.npz'
+        data_name = str1 + '_' + str2 + '_' + str4 
         torch.save(data, os.path.join(has_save_dir, data_name + '.pt'))
 
     # p.close()
