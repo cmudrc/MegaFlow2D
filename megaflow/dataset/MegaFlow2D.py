@@ -135,11 +135,12 @@ class MegaFlow2D(Dataset):
 
     def get(self, idx):
         # data_name = self.data_list[idx]
-        data = torch.load(os.path.join(self.processed_las_data_dir, self.data_list[idx]))
+        data_l = torch.load(os.path.join(self.processed_las_data_dir, self.data_list[idx]))
+        data_h = torch.load(os.path.join(self.processed_has_data_dir, self.data_list[idx]))
         
         if self.transforms is not None:
-            data = self.transform(data)
-        return data
+            data_l = self.transform(data_l)
+        return data_l, data_h
 
     def get_eval(self, idx):
         # same as get, but returns data name as well
