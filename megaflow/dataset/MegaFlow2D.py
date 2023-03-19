@@ -3,7 +3,7 @@ import sys
 import time
 import multiprocessing as mp
 import h5py
-import tqdm
+from tqdm import tqdm
 
 import torch
 from torch_geometric.data import Data, Dataset, download_url, extract_zip
