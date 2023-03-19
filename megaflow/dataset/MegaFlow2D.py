@@ -83,7 +83,7 @@ class MegaFlow2D(Dataset):
             return False
     
     def len(self):
-        with h5py.File(self.processed_file_names, 'r') as f:
+        with h5py.File(os.path.join(self.processed_las_data_dir, self.processed_file_names), 'r') as f:
             return len(f.keys())
 
     def download(self):

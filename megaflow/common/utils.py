@@ -127,9 +127,12 @@ def progress_bar(processed_file_dir, len_file_list):
     p = tqdm(total=len_file_list, disable=False)
     len_prev_file_list = 0
     while True:
-        file_list = os.listdir(processed_file_dir)
-        p.update(len(file_list)-len_prev_file_list)
-        if len(file_list) == len_file_list:
-            break
-        len_prev_file_list = len(file_list)
+        with h5py.File(os.path.join(processed_file_dir, 'data.h5'), 'r') as h5_file:
+            len_file_list = len(h5_file.keys())
+            if len_file_list > len_prev_file_list:
+                p.update(len_file_list - len_prev_file_list)
+                len_prev_file_list = len_file_list
         time.sleep(1)
+        if len_file_list == len_file_list:
+            break
+    p.close()
