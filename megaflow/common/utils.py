@@ -14,7 +14,7 @@ def get_cur_time():
     return datetime.strftime(datetime.now(), '%Y-%m-%d_%H-%M')
 
 
-def process_file_list(data_list):
+def process_file_list(data_list, progress):
     raw_data_dir = data_list[0]
     las_save_dir = data_list[1]
     has_save_dir = data_list[2]
@@ -119,20 +119,7 @@ def process_file_list(data_list):
                 for key, item in data_has:
                     grp_has.create_dataset(key, data=item.numpy())
 
+                with progress.get_lock():
+                    progress.value += 1
+
     # p.close()
-
-
-def progress_bar(processed_file_dir, len_file_list):
-    # scan the processed file directory every 1 second, and update the progress bar
-    p = tqdm(total=len_file_list, disable=False)
-    len_prev_file_list = 0
-    while True:
-        with h5py.File(os.path.join(processed_file_dir, 'data.h5'), 'r') as h5_file:
-            len_file_list = len(h5_file.keys())
-            if len_file_list > len_prev_file_list:
-                p.update(len_file_list - len_prev_file_list)
-                len_prev_file_list = len_file_list
-        time.sleep(1)
-        if len_file_list == len_file_list:
-            break
-    p.close()

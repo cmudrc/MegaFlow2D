@@ -1,7 +1,9 @@
 import os
 import sys
+import time
 import multiprocessing as mp
 import h5py
+import tqdm
 
 import torch
 from torch_geometric.data import Data, Dataset, download_url, extract_zip
@@ -113,25 +115,29 @@ class MegaFlow2D(Dataset):
         
         # organize the data list for each process and combine into pool.map input
         data_list = []
-        for i in range(num_proc - 1):
+        for i in range(num_proc):
             data_list.append([self.raw_data_dir, self.processed_las_data_dir, self.processed_has_data_dir, las_data_list[i], has_data_list[i], has_original_data_list[i]])
 
-        # create a pool of processes
-        pool = mp.Pool(num_proc - 1)
+        progress = mp.Value('i', 0)
 
         # start the processes
-        pool.map(process_file_list, data_list)
-
-        # create a new process for the progress bar
-        p = mp.Process(target=progress_bar, args=(self.processed_las_data_dir, data_len))
-        p.start()
+        with mp.Pool(num_proc) as pool:
+            results = []
+            for i in range(num_proc):
+                results.append(pool.apply_async(process_file_list, (data_list[i], progress)))
+            
+            with tqdm(total=data_len) as pbar:
+                while progress.value < data_len:
+                    pbar.n = progress.value
+                    pbar.refresh()
+                    time.sleep(1)
+                pbar.n = progress.value
+                pbar.refresh()
+                pbar.close()
 
         # close the pool and wait for the work to finish
-        pool.close()
-        pool.join()
-
-        # terminate the progress bar process
-        p.terminate()
+        for result in results:
+            result.get()
 
         # redo data list
         with h5py.File(os.path.join(self.processed_las_data_dir, 'data.h5'), 'r') as f:
