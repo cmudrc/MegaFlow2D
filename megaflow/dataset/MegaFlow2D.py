@@ -90,8 +90,11 @@ class MegaFlow2D(Dataset):
             return False
     
     def len(self):
-        with h5py.File(os.path.join(self.processed_las_data_dir, self.processed_file_names), 'r') as f:
-            return len(f.keys())
+        if not self.is_processed:
+            return 0
+        else:
+            with h5py.File(os.path.join(self.processed_las_data_dir, 'data.h5'), 'r') as f:
+                return len(f.keys())
 
     def download(self):
         url = 'https://huggingface.co/datasets/cmudrc/MegaFlow2D/resolve/main/data.zip'
