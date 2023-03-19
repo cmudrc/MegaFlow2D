@@ -1,6 +1,7 @@
 import os
 import sys
 import multiprocessing as mp
+import h5py
 
 import torch
 from torch_geometric.data import Data, Dataset, download_url, extract_zip
@@ -32,7 +33,8 @@ class MegaFlow2D(Dataset):
         self.raw_data_dir = os.path.join(self.root, 'raw')
         self.processed_las_data_dir = os.path.join(self.root, 'processed', 'las')
         self.processed_has_data_dir = os.path.join(self.root, 'processed', 'has')
-        self.data_list = self.processed_file_names
+        with h5py.File(os.path.join(self.processed_las_data_dir, 'data.h5'), 'r') as f:
+            self.data_list = f.keys()
         if not self.is_processed:
             self.process()
 
@@ -61,7 +63,7 @@ class MegaFlow2D(Dataset):
 
     @property
     def raw_file_names(self):
-        return os.listdir(self.raw_dir)
+        return os.listdir(self.raw_data_dir)
 
     @property
     def processed_file_names(self):
@@ -81,7 +83,8 @@ class MegaFlow2D(Dataset):
             return False
     
     def len(self):
-        return len(self.data_list)
+        with h5py.File(self.processed_file_names, 'r') as f:
+            return len(f.keys())
 
     def download(self):
         url = 'https://huggingface.co/datasets/cmudrc/MegaFlow2D/resolve/main/data.zip'
@@ -134,10 +137,17 @@ class MegaFlow2D(Dataset):
         return data
 
     def get(self, idx):
-        # data_name = self.data_list[idx]
-        data_l = torch.load(os.path.join(self.processed_las_data_dir, self.data_list[idx]))
-        data_h = torch.load(os.path.join(self.processed_has_data_dir, self.data_list[idx]))
-        
+        data_name = self.data_list[idx]
+        with h5py.File(os.path.join(self.processed_las_data_dir, 'data.h5'), 'r') as f:
+            grp = f[data_name]
+            loaded_data_dict = {key: torch.tensor(grp[key][:]) for key in grp.keys()}
+            data_l = Data.from_dict(loaded_data_dict)
+
+        with h5py.File(os.path.join(self.processed_has_data_dir, 'data.h5'), 'r') as f:
+            grp = f[data_name]
+            loaded_data_dict = {key: torch.tensor(grp[key][:]) for key in grp.keys()}
+            data_h = Data.from_dict(loaded_data_dict)
+
         if self.transforms is not None:
             data_l = self.transform(data_l)
         return data_l, data_h
