@@ -118,13 +118,13 @@ class MegaFlow2D(Dataset):
 
         # create a pool of processes
         pool = mp.Pool(num_proc - 1)
-                
-        # create a new process for the progress bar
-        p = mp.Process(target=progress_bar, args=(self.processed_las_data_dir, data_len))
-        p.start()
 
         # start the processes
         pool.map(process_file_list, data_list)
+
+        # create a new process for the progress bar
+        p = mp.Process(target=progress_bar, args=(self.processed_las_data_dir, data_len))
+        p.start()
 
         # close the pool and wait for the work to finish
         pool.close()

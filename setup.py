@@ -33,6 +33,7 @@ setuptools.setup(
         'tqdm>=4.53.0',
         'scikit-learn>=0.20.0',
         'scipy>=1.5.4',
+        'h5py>=2.10.0',
     ],
     license='MIT',
     packages=setuptools.find_packages(exclude=['examples', 'examples.model']),

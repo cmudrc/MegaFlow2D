@@ -23,8 +23,8 @@ def process_file_list(data_list):
     # os.makedirs(las_save_dir, exist_ok=True)
     # os.makedirs(has_save_dir, exist_ok=True)
     # p = tqdm(total=len(las_data_list), disable=False)
-    with h5py.File(os.path.join(las_save_dir, 'data.h5'), 'w') as las_h5_file:
-        with h5py.File(os.path.join(has_save_dir, 'data.h5'), 'w') as has_h5_file:
+    with h5py.File(os.path.join(las_save_dir, 'data.h5'), 'a') as las_h5_file:
+        with h5py.File(os.path.join(has_save_dir, 'data.h5'), 'a') as has_h5_file:
             for las_data_name, has_data_name in zip(las_data_list, has_data_list):
                 # process las graph
                 las_data = np.load(os.path.join(raw_data_dir, 'las', las_data_name))
