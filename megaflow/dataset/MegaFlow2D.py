@@ -33,8 +33,13 @@ class MegaFlow2D(Dataset):
         self.raw_data_dir = os.path.join(self.root, 'raw')
         self.processed_las_data_dir = os.path.join(self.root, 'processed', 'las')
         self.processed_has_data_dir = os.path.join(self.root, 'processed', 'has')
-        with h5py.File(os.path.join(self.processed_las_data_dir, 'data.h5'), 'r') as f:
-            self.data_list = f.keys()
+        # check if data.h5 exists, if yes, return the list of keys as data_list, else return []
+        if os.path.exists(os.path.join(self.processed_las_data_dir, 'data.h5')):
+            with h5py.File(os.path.join(self.processed_las_data_dir, 'data.h5'), 'r') as f:
+                self.data_list = list(f.keys())
+        else:
+            self.data_list = []
+        
         if not self.is_processed:
             self.process()
 
@@ -125,7 +130,12 @@ class MegaFlow2D(Dataset):
         pool.close()
         pool.join()
 
-        self.data_list = self.processed_file_names
+        # terminate the progress bar process
+        p.terminate()
+
+        # redo data list
+        with h5py.File(os.path.join(self.processed_las_data_dir, 'data.h5'), 'r') as f:
+            self.data_list = list(f.keys())
 
     def transform(self, data):
         if self.transforms == 'error_estimation':
