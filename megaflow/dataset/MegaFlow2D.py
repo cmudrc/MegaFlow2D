@@ -8,7 +8,7 @@ import tqdm
 import torch
 from torch_geometric.data import Data, Dataset, download_url, extract_zip
 import numpy as np
-from megaflow.common.utils import process_file_list, progress_bar
+from megaflow.common.utils import process_file_list
 
 
 class MegaFlow2D(Dataset):
