@@ -8,23 +8,27 @@ from torch_geometric.data import Data
 import h5py
 import numpy as np
 from tqdm import tqdm
+from queue import Empty
 
 
 def get_cur_time():
     return datetime.strftime(datetime.now(), '%Y-%m-%d_%H-%M')
 
 
-def process_file_list(data_list, progress):
+def process_file_list(data_list):
     raw_data_dir = data_list[0]
     las_save_dir = data_list[1]
     has_save_dir = data_list[2]
     las_data_list = data_list[3]
     has_data_list = data_list[4]
+    # has_original_data_list = data_list[5]
+    index = data_list[5]
+    shared_progress_list = data_list[6]
     # os.makedirs(las_save_dir, exist_ok=True)
     # os.makedirs(has_save_dir, exist_ok=True)
     # p = tqdm(total=len(las_data_list), disable=False)
-    with h5py.File(os.path.join(las_save_dir, 'data.h5'), 'a') as las_h5_file:
-        with h5py.File(os.path.join(has_save_dir, 'data.h5'), 'a') as has_h5_file:
+    with h5py.File(os.path.join(las_save_dir, 'data_{}.h5'.format(index)), 'a') as las_h5_file:
+        with h5py.File(os.path.join(has_save_dir, 'data_{}.h5'.format(index)), 'a') as has_h5_file:
             for las_data_name, has_data_name in zip(las_data_list, has_data_list):
                 # process las graph
                 las_data = np.load(os.path.join(raw_data_dir, 'las', las_data_name))
@@ -66,15 +70,15 @@ def process_file_list(data_list, progress):
                     node_pos[0] = mesh_data['x'][j]
                     node_pos[1] = mesh_data['y'][j]
 
-                if j == 0:
-                    node_pos_list = np.array([node_pos])
-                else:
-                    node_pos_list = np.append(node_pos_list, np.array([node_pos]), axis=0)
+                    if j == 0:
+                        node_pos_list = np.array([node_pos])
+                    else:
+                        node_pos_list = np.append(node_pos_list, np.array([node_pos]), axis=0)
 
                 node_pos_list = torch.tensor(node_pos_list, dtype=torch.float)
 
                 data_las = Data(x=node_data_list, y=val_data_list, edge_index=edge_index.t().contiguous(), edge_attr=edge_attr, pos=node_pos_list)
-
+                # print("las data process done")
                 # process has graph
                 has_data_original = np.load(os.path.join(raw_data_dir, 'has_original', has_data_name))
                 mesh_data = np.load(os.path.join(raw_data_dir, 'mesh', 'has', mesh_name))
@@ -108,18 +112,29 @@ def process_file_list(data_list, progress):
                 node_pos_list = torch.tensor(node_pos_list, dtype=torch.float)
 
                 data_has = Data(x=node_data_list, edge_index=edge_index.t().contiguous(), edge_attr=edge_attr, pos=node_pos_list)
-
+                # print("has data process done")
                 data_name = str1 + '_' + str2 + '_' + str4
 
                 grp_las = las_h5_file.create_group(data_name)
                 for key, item in data_las:
                     grp_las.create_dataset(key, data=item.numpy())
+                las_h5_file.flush()
 
                 grp_has = has_h5_file.create_group(data_name)
                 for key, item in data_has:
                     grp_has.create_dataset(key, data=item.numpy())
+                has_h5_file.flush()
+                # print("data save done")
+                # with progress.get_lock():
+                #     progress.value += 1
 
-                with progress.get_lock():
-                    progress.value += 1
+                shared_progress_list.append("update")
 
-    # p.close()
+
+
+def update_progress(shared_progress_list, total_data):
+    with tqdm(total=total_data) as pbar:
+        while len(shared_progress_list) < total_data:
+            current_len = len(shared_progress_list)
+            pbar.update(current_len - pbar.n)
+            time.sleep(1)

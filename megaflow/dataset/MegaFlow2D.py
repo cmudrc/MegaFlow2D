@@ -2,13 +2,14 @@ import os
 import sys
 import time
 import multiprocessing as mp
+from threading import Thread
 import h5py
 from tqdm import tqdm
 
 import torch
 from torch_geometric.data import Data, Dataset, download_url, extract_zip
 import numpy as np
-from megaflow.common.utils import process_file_list
+from megaflow.common.utils import process_file_list, update_progress
 
 
 class MegaFlow2D(Dataset):
@@ -107,41 +108,44 @@ class MegaFlow2D(Dataset):
         os.makedirs(self.processed_has_data_dir, exist_ok=True)
         las_data_list = os.listdir(os.path.join(self.raw_data_dir, 'las'))
         has_data_list = os.listdir(os.path.join(self.raw_data_dir, 'has'))
-        has_original_data_list = os.listdir(os.path.join(self.raw_data_dir, 'has_original'))
+        # has_original_data_list = os.listdir(os.path.join(self.raw_data_dir, 'has_original'))
         data_len = len(las_data_list)
         # mesh_data_list = os.listdir(os.path.join(self.raw_data_dir, 'mesh'))
         # split the list according to the number of processors and process the data in parallel
         num_proc = mp.cpu_count()
-        las_data_list = np.array_split(las_data_list, num_proc)
-        has_data_list = np.array_split(has_data_list, num_proc)
-        has_original_data_list = np.array_split(has_original_data_list, num_proc)
+        las_data_list = np.array_split(las_data_list, num_proc - 1)
+        has_data_list = np.array_split(has_data_list, num_proc - 1)
+        # has_original_data_list = np.array_split(has_original_data_list, num_proc)
         
         # organize the data list for each process and combine into pool.map input
         data_list = []
-        for i in range(num_proc):
-            data_list.append([self.raw_data_dir, self.processed_las_data_dir, self.processed_has_data_dir, las_data_list[i], has_data_list[i], has_original_data_list[i]])
+        # progress = mp.Value('i', 0)
+        manager = mp.Manager()
+        shared_progress_list = manager.list()
+        for i in range(num_proc - 1):
+            data_list.append([self.raw_data_dir, self.processed_las_data_dir, self.processed_has_data_dir, las_data_list[i], has_data_list[i], i, shared_progress_list])
 
-        progress = mp.Value('i', 0)
+        # start the progress bar
+        progress_thread = Thread(target=update_progress, args=(shared_progress_list, data_len))
+        progress_thread.start()
 
         # start the processes
-        with mp.Pool(num_proc) as pool:
-            results = []
-            for i in range(num_proc):
-                results.append(pool.apply_async(process_file_list, (data_list[i], progress)))
-            
-            with tqdm(total=data_len) as pbar:
-                while progress.value < data_len:
-                    pbar.n = progress.value
-                    pbar.refresh()
-                    time.sleep(1)
-                pbar.n = progress.value
-                pbar.refresh()
-                pbar.close()
+        with mp.Pool(num_proc - 1) as pool:
+            results = [pool.apply_async(process_file_list, args=([data_list[i]])) for i in range(num_proc - 1)]
 
-        # close the pool and wait for the work to finish
-        for result in results:
-            result.get()
+            for result in results:
+                result.get()
 
+        # stop the progress bar
+        progress_thread.join()
+
+        # merge the data
+        input_file_las = [os.path.join(self.processed_las_data_dir, 'data_{}.h5'.format(i)) for i in range(num_proc)]
+        input_file_has = [os.path.join(self.processed_has_data_dir, 'data_{}.h5'.format(i)) for i in range(num_proc)]
+        output_file_las = os.path.join(self.processed_las_data_dir, 'data.h5')
+        output_file_has = os.path.join(self.processed_has_data_dir, 'data.h5')
+        self.merge_hdf5_files(input_file_las, output_file_las)
+        self.merge_hdf5_files(input_file_has, output_file_has)
         # redo data list
         with h5py.File(os.path.join(self.processed_las_data_dir, 'data.h5'), 'r') as f:
             self.data_list = list(f.keys())
@@ -180,6 +184,18 @@ class MegaFlow2D(Dataset):
         if self.transform is not None:
             data = self.transform(data)
         return data, data_name
+    
+    @ property
+    def merge_hdf5_files(input_files, output_file):
+        with h5py.File(output_file, 'w') as out_f:
+            for input_file in input_files:
+                with h5py.File(input_file, 'r') as in_f:
+                    for key in in_f.keys():
+                        in_f.copy(key, out_f)
+
+        # Remove the input files after merging
+        for input_file in input_files:
+            os.remove(input_file)
 
 
 class MegaFlow2DSubset(MegaFlow2D):
