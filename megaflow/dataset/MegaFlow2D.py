@@ -113,8 +113,8 @@ class MegaFlow2D(Dataset):
         # mesh_data_list = os.listdir(os.path.join(self.raw_data_dir, 'mesh'))
         # split the list according to the number of processors and process the data in parallel
         num_proc = mp.cpu_count()
-        las_data_list = np.array_split(las_data_list, num_proc - 1)
-        has_data_list = np.array_split(has_data_list, num_proc - 1)
+        las_data_list = np.array_split(las_data_list, num_proc)
+        has_data_list = np.array_split(has_data_list, num_proc)
         # has_original_data_list = np.array_split(has_original_data_list, num_proc)
         
         # organize the data list for each process and combine into pool.map input
@@ -122,7 +122,7 @@ class MegaFlow2D(Dataset):
         # progress = mp.Value('i', 0)
         manager = mp.Manager()
         shared_progress_list = manager.list()
-        for i in range(num_proc - 1):
+        for i in range(num_proc):
             data_list.append([self.raw_data_dir, self.processed_las_data_dir, self.processed_has_data_dir, las_data_list[i], has_data_list[i], i, shared_progress_list])
 
         # start the progress bar
@@ -130,7 +130,7 @@ class MegaFlow2D(Dataset):
         progress_thread.start()
 
         # start the processes
-        with mp.Pool(num_proc - 1) as pool:
+        with mp.Pool(num_proc) as pool:
             results = [pool.apply_async(process_file_list, args=([data_list[i]])) for i in range(num_proc - 1)]
 
             for result in results:

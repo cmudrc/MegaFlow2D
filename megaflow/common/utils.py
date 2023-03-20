@@ -24,9 +24,7 @@ def process_file_list(data_list):
     # has_original_data_list = data_list[5]
     index = data_list[5]
     shared_progress_list = data_list[6]
-    # os.makedirs(las_save_dir, exist_ok=True)
-    # os.makedirs(has_save_dir, exist_ok=True)
-    # p = tqdm(total=len(las_data_list), disable=False)
+    processed_file_count = 0
     with h5py.File(os.path.join(las_save_dir, 'data_{}.h5'.format(index)), 'a') as las_h5_file:
         with h5py.File(os.path.join(has_save_dir, 'data_{}.h5'.format(index)), 'a') as has_h5_file:
             for las_data_name, has_data_name in zip(las_data_list, has_data_list):
@@ -118,23 +116,24 @@ def process_file_list(data_list):
                 grp_las = las_h5_file.create_group(data_name)
                 for key, item in data_las:
                     grp_las.create_dataset(key, data=item.numpy())
-                las_h5_file.flush()
+                # las_h5_file.flush()
 
                 grp_has = has_h5_file.create_group(data_name)
                 for key, item in data_has:
                     grp_has.create_dataset(key, data=item.numpy())
-                has_h5_file.flush()
+                # has_h5_file.flush()
                 # print("data save done")
                 # with progress.get_lock():
                 #     progress.value += 1
-
-                shared_progress_list.append("update")
-
+                processed_file_count += 1
+                # update progress every 10 files
+                if processed_file_count % 10 == 0 and processed_file_count > 0:
+                    shared_progress_list.append("update")
 
 
 def update_progress(shared_progress_list, total_data):
     with tqdm(total=total_data) as pbar:
-        while len(shared_progress_list) < total_data:
-            current_len = len(shared_progress_list)
+        while len(shared_progress_list) * 10 < total_data - 10:
+            current_len = len(shared_progress_list) * 10
             pbar.update(current_len - pbar.n)
             time.sleep(1)
