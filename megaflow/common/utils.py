@@ -36,23 +36,34 @@ def process_file_list(data_list):
                 str4 = str4.split('.')[0]
                 mesh_name = str1 + '_' + str2 + '.npz'
                 mesh_data = np.load(os.path.join(raw_data_dir, 'mesh', 'las', mesh_name))
-                node_data = np.zeros(3)
-                val_data = np.zeros(3)
-                for j in range(len(mesh_data['x'])):
-                    node_data[0] = las_data['ux'][j]
-                    node_data[1] = las_data['uy'][j]
-                    node_data[2] = las_data['p'][j]
+                # node_data = np.zeros(3)
+                # val_data = np.zeros(3)
 
-                    val_data[0] = has_data['ux'][j]
-                    val_data[1] = has_data['uy'][j]
-                    val_data[2] = has_data['p'][j]
+                node_data_x = las_data['ux']
+                node_data_y = las_data['uy']
+                node_data_p = las_data['p']
 
-                    if j == 0:
-                        node_data_list = np.array([node_data])
-                        val_data_list = np.array([val_data])
-                    else:
-                        node_data_list = np.append(node_data_list, np.array([node_data]), axis=0)
-                        val_data_list = np.append(val_data_list, np.array([val_data]), axis=0)
+                val_data_x = has_data['ux']
+                val_data_y = has_data['uy']
+                val_data_p = has_data['p']
+
+                node_data_list = np.concatenate((node_data_x, node_data_y, node_data_p), axis=1)
+                val_data_list = np.concatenate((val_data_x, val_data_y, val_data_p), axis=1)
+                # for j in range(len(mesh_data['x'])):
+                #     node_data[0] = las_data['ux'][j]
+                #     node_data[1] = las_data['uy'][j]
+                #     node_data[2] = las_data['p'][j]
+
+                #     val_data[0] = has_data['ux'][j]
+                #     val_data[1] = has_data['uy'][j]
+                #     val_data[2] = has_data['p'][j]
+
+                #     if j == 0:
+                #         node_data_list = np.array([node_data])
+                #         val_data_list = np.array([val_data])
+                #     else:
+                #         node_data_list = np.append(node_data_list, np.array([node_data]), axis=0)
+                #         val_data_list = np.append(val_data_list, np.array([val_data]), axis=0)
 
                 node_data_list = torch.tensor(node_data_list, dtype=torch.float)
                 val_data_list = torch.tensor(val_data_list, dtype=torch.float)
@@ -63,15 +74,18 @@ def process_file_list(data_list):
                 edge_attr = np.array(mesh_data['edge_properties'])
                 edge_attr = torch.tensor(edge_attr, dtype=torch.float)
 
-                node_pos = np.zeros(2)
-                for j in range(len(mesh_data['x'])):
-                    node_pos[0] = mesh_data['x'][j]
-                    node_pos[1] = mesh_data['y'][j]
+                # node_pos = np.zeros(2)
+                node_pos_x = mesh_data['x']
+                node_pos_y = mesh_data['y']
+                node_pos_list = np.concatenate((node_pos_x, node_pos_y), axis=1)
+                # for j in range(len(mesh_data['x'])):
+                #     node_pos[0] = mesh_data['x'][j]
+                #     node_pos[1] = mesh_data['y'][j]
 
-                    if j == 0:
-                        node_pos_list = np.array([node_pos])
-                    else:
-                        node_pos_list = np.append(node_pos_list, np.array([node_pos]), axis=0)
+                #     if j == 0:
+                #         node_pos_list = np.array([node_pos])
+                #     else:
+                #         node_pos_list = np.append(node_pos_list, np.array([node_pos]), axis=0)
 
                 node_pos_list = torch.tensor(node_pos_list, dtype=torch.float)
 
@@ -80,32 +94,40 @@ def process_file_list(data_list):
                 # process has graph
                 has_data_original = np.load(os.path.join(raw_data_dir, 'has_original', has_data_name))
                 mesh_data = np.load(os.path.join(raw_data_dir, 'mesh', 'has', mesh_name))
-                node_data = np.zeros(3)
-                for j in range(len(mesh_data['x'])):
-                    node_data[0] = has_data_original['ux'][j]
-                    node_data[1] = has_data_original['uy'][j]
-                    node_data[2] = has_data_original['p'][j]
+                # node_data = np.zeros(3)
+                node_data_x = has_data_original['ux']
+                node_data_y = has_data_original['uy']
+                node_data_p = has_data_original['p']
 
-                    if j == 0:
-                        node_data_list = np.array([node_data])
-                    else:
-                        node_data_list = np.append(node_data_list, np.array([node_data]), axis=0)
+                node_data_list = np.concatenate((node_data_x, node_data_y, node_data_p), axis=1)
+                # for j in range(len(mesh_data['x'])):
+                #     node_data[0] = has_data_original['ux'][j]
+                #     node_data[1] = has_data_original['uy'][j]
+                #     node_data[2] = has_data_original['p'][j]
+
+                #     if j == 0:
+                #         node_data_list = np.array([node_data])
+                #     else:
+                #         node_data_list = np.append(node_data_list, np.array([node_data]), axis=0)
 
                 node_data_list = torch.tensor(node_data_list, dtype=torch.float)
                 edge_index = np.array(mesh_data['edges'])
                 edge_index = torch.tensor(edge_index, dtype=torch.long)
                 edge_attr = np.array(mesh_data['edge_properties'])
                 edge_attr = torch.tensor(edge_attr, dtype=torch.float)
-        
-                node_pos = np.zeros(2)
-                for j in range(len(mesh_data['x'])):
-                    node_pos[0] = mesh_data['x'][j]
-                    node_pos[1] = mesh_data['y'][j]
 
-                    if j == 0:
-                        node_pos_list = np.array([node_pos])
-                    else:
-                        node_pos_list = np.append(node_pos_list, np.array([node_pos]), axis=0)
+                node_pos_x = mesh_data['x']
+                node_pos_y = mesh_data['y']
+                node_pos_list = np.concatenate((node_pos_x, node_pos_y), axis=1)
+                # node_pos = np.zeros(2)
+                # for j in range(len(mesh_data['x'])):
+                #     node_pos[0] = mesh_data['x'][j]
+                #     node_pos[1] = mesh_data['y'][j]
+
+                #     if j == 0:
+                #         node_pos_list = np.array([node_pos])
+                #     else:
+                #         node_pos_list = np.append(node_pos_list, np.array([node_pos]), axis=0)
 
                 node_pos_list = torch.tensor(node_pos_list, dtype=torch.float)
 
@@ -115,12 +137,12 @@ def process_file_list(data_list):
 
                 grp_las = las_h5_file.create_group(data_name)
                 for key, item in data_las:
-                    grp_las.create_dataset(key, data=item.numpy())
+                    grp_las.create_dataset(key, data=item.numpy(), compression="gzip", compression_opts=7)
                 # las_h5_file.flush()
 
                 grp_has = has_h5_file.create_group(data_name)
                 for key, item in data_has:
-                    grp_has.create_dataset(key, data=item.numpy())
+                    grp_has.create_dataset(key, data=item.numpy(), compression="gzip", compression_opts=7)
                 # has_h5_file.flush()
                 # print("data save done")
                 # with progress.get_lock():

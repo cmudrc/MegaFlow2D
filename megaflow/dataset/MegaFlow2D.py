@@ -149,7 +149,7 @@ class MegaFlow2D(Dataset):
         # redo data list
         with h5py.File(os.path.join(self.processed_las_data_dir, 'data.h5'), 'r') as f:
             self.data_list = list(f.keys())
-
+        
     def transform(self, data):
         if self.transforms == 'error_estimation':
             data.y = data.y - data.x
