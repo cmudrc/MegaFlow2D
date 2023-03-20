@@ -17,140 +17,157 @@ def get_cur_time():
 
 def process_file_list(data_list):
     raw_data_dir = data_list[0]
-    las_save_dir = data_list[1]
-    has_save_dir = data_list[2]
+    save_dir = data_list[1]
+    # has_save_dir = data_list[2]
     las_data_list = data_list[3]
     has_data_list = data_list[4]
     # has_original_data_list = data_list[5]
     index = data_list[5]
     shared_progress_list = data_list[6]
     processed_file_count = 0
-    with h5py.File(os.path.join(las_save_dir, 'data_{}.h5'.format(index)), 'a') as las_h5_file:
-        with h5py.File(os.path.join(has_save_dir, 'data_{}.h5'.format(index)), 'a') as has_h5_file:
-            for las_data_name, has_data_name in zip(las_data_list, has_data_list):
-                # process las graph
-                las_data = np.load(os.path.join(raw_data_dir, 'las', las_data_name))
-                has_data = np.load(os.path.join(raw_data_dir, 'has', has_data_name))
+    with h5py.File(os.path.join(save_dir, 'data_{}.h5'.format(index)), 'a') as f:
+        # with h5py.File(os.path.join(has_save_dir, 'data_{}.h5'.format(index)), 'a') as has_h5_file:
+        for las_data_name, has_data_name in zip(las_data_list, has_data_list):
+            # process data name into format geometry_index_timestep
+            str1, str2, str3, str4 = las_data_name.split('_')
+            str4 = str4.split('.')[0]
+            mesh_name = str1 + '_' + str2
+            time_step = int(str4)
 
-                str1, str2, str3, str4 = las_data_name.split('_')
-                str4 = str4.split('.')[0]
-                mesh_name = str1 + '_' + str2 + '.npz'
-                mesh_data = np.load(os.path.join(raw_data_dir, 'mesh', 'las', mesh_name))
-                # node_data = np.zeros(3)
-                # val_data = np.zeros(3)
+            # check if the mesh type is in the h5 file, if not, create a group for it
+            if f[mesh_name] is None:
+                grp = f.create_group(mesh_name)
+                dset_las = grp.create_dataset('las', shape=(1000, 1), maxshape=None, chunks=True, compression='gzip', compression_opts=7)
+                dset_has = grp.create_dataset('has', shape=(1000, 1), maxshape=None, chunks=True, compression='gzip', compression_opts=7)
+            else:
+                grp = f[mesh_name]
+                dset_las = grp.require_dataset('las')
+                dset_has = grp.require_dataset('has')
+            
+            # process las graph
+            las_data = np.load(os.path.join(raw_data_dir, 'las', las_data_name))
+            has_data = np.load(os.path.join(raw_data_dir, 'has', has_data_name))
 
-                node_data_x = las_data['ux']
-                node_data_y = las_data['uy']
-                node_data_p = las_data['p']
+            str1, str2, str3, str4 = las_data_name.split('_')
+            str4 = str4.split('.')[0]
+            mesh_name = str1 + '_' + str2 + '.npz'
+            mesh_data = np.load(os.path.join(raw_data_dir, 'mesh', 'las', mesh_name))
+            # node_data = np.zeros(3)
+            # val_data = np.zeros(3)
 
-                val_data_x = has_data['ux']
-                val_data_y = has_data['uy']
-                val_data_p = has_data['p']
+            node_data_x = las_data['ux']
+            node_data_y = las_data['uy']
+            node_data_p = las_data['p']
 
-                node_data_list = np.concatenate((node_data_x, node_data_y, node_data_p), axis=1)
-                val_data_list = np.concatenate((val_data_x, val_data_y, val_data_p), axis=1)
-                # for j in range(len(mesh_data['x'])):
-                #     node_data[0] = las_data['ux'][j]
-                #     node_data[1] = las_data['uy'][j]
-                #     node_data[2] = las_data['p'][j]
+            val_data_x = has_data['ux']
+            val_data_y = has_data['uy']
+            val_data_p = has_data['p']
 
-                #     val_data[0] = has_data['ux'][j]
-                #     val_data[1] = has_data['uy'][j]
-                #     val_data[2] = has_data['p'][j]
+            node_data_list = np.concatenate((node_data_x, node_data_y, node_data_p), axis=1)
+            val_data_list = np.concatenate((val_data_x, val_data_y, val_data_p), axis=1)
+            # for j in range(len(mesh_data['x'])):
+            #     node_data[0] = las_data['ux'][j]
+            #     node_data[1] = las_data['uy'][j]
+            #     node_data[2] = las_data['p'][j]
 
-                #     if j == 0:
-                #         node_data_list = np.array([node_data])
-                #         val_data_list = np.array([val_data])
-                #     else:
-                #         node_data_list = np.append(node_data_list, np.array([node_data]), axis=0)
-                #         val_data_list = np.append(val_data_list, np.array([val_data]), axis=0)
+            #     val_data[0] = has_data['ux'][j]
+            #     val_data[1] = has_data['uy'][j]
+            #     val_data[2] = has_data['p'][j]
 
-                node_data_list = torch.tensor(node_data_list, dtype=torch.float)
-                val_data_list = torch.tensor(val_data_list, dtype=torch.float)
+            #     if j == 0:
+            #         node_data_list = np.array([node_data])
+            #         val_data_list = np.array([val_data])
+            #     else:
+            #         node_data_list = np.append(node_data_list, np.array([node_data]), axis=0)
+            #         val_data_list = np.append(val_data_list, np.array([val_data]), axis=0)
 
-                # process edge
-                edge_index = np.array(mesh_data['edges'])
-                edge_index = torch.tensor(edge_index, dtype=torch.long)
-                edge_attr = np.array(mesh_data['edge_properties'])
-                edge_attr = torch.tensor(edge_attr, dtype=torch.float)
+            node_data_list = torch.tensor(node_data_list, dtype=torch.float)
+            val_data_list = torch.tensor(val_data_list, dtype=torch.float)
 
-                # node_pos = np.zeros(2)
-                node_pos_x = mesh_data['x']
-                node_pos_y = mesh_data['y']
-                node_pos_list = np.concatenate((node_pos_x, node_pos_y), axis=1)
-                # for j in range(len(mesh_data['x'])):
-                #     node_pos[0] = mesh_data['x'][j]
-                #     node_pos[1] = mesh_data['y'][j]
+            # process edge
+            edge_index = np.array(mesh_data['edges'])
+            edge_index = torch.tensor(edge_index, dtype=torch.long)
+            edge_attr = np.array(mesh_data['edge_properties'])
+            edge_attr = torch.tensor(edge_attr, dtype=torch.float)
 
-                #     if j == 0:
-                #         node_pos_list = np.array([node_pos])
-                #     else:
-                #         node_pos_list = np.append(node_pos_list, np.array([node_pos]), axis=0)
+            # node_pos = np.zeros(2)
+            node_pos_x = mesh_data['x']
+            node_pos_y = mesh_data['y']
+            node_pos_list = np.concatenate((node_pos_x, node_pos_y), axis=1)
+            # for j in range(len(mesh_data['x'])):
+            #     node_pos[0] = mesh_data['x'][j]
+            #     node_pos[1] = mesh_data['y'][j]
 
-                node_pos_list = torch.tensor(node_pos_list, dtype=torch.float)
+            #     if j == 0:
+            #         node_pos_list = np.array([node_pos])
+            #     else:
+            #         node_pos_list = np.append(node_pos_list, np.array([node_pos]), axis=0)
 
-                data_las = Data(x=node_data_list, y=val_data_list, edge_index=edge_index.t().contiguous(), edge_attr=edge_attr, pos=node_pos_list)
-                # print("las data process done")
-                # process has graph
-                has_data_original = np.load(os.path.join(raw_data_dir, 'has_original', has_data_name))
-                mesh_data = np.load(os.path.join(raw_data_dir, 'mesh', 'has', mesh_name))
-                # node_data = np.zeros(3)
-                node_data_x = has_data_original['ux']
-                node_data_y = has_data_original['uy']
-                node_data_p = has_data_original['p']
+            node_pos_list = torch.tensor(node_pos_list, dtype=torch.float)
 
-                node_data_list = np.concatenate((node_data_x, node_data_y, node_data_p), axis=1)
-                # for j in range(len(mesh_data['x'])):
-                #     node_data[0] = has_data_original['ux'][j]
-                #     node_data[1] = has_data_original['uy'][j]
-                #     node_data[2] = has_data_original['p'][j]
+            # create a python dictionary to store the data
+            data_las = {'x': node_data_list, 'y': val_data_list, 'edge_index': edge_index.t().contiguous(), 'edge_attr': edge_attr, 'pos': node_pos_list}
+            # data_las = Data(x=node_data_list, y=val_data_list, edge_index=edge_index.t().contiguous(), edge_attr=edge_attr, pos=node_pos_list)
+            # print("las data process done")
+            # process has graph
+            has_data_original = np.load(os.path.join(raw_data_dir, 'has_original', has_data_name))
+            mesh_data = np.load(os.path.join(raw_data_dir, 'mesh', 'has', mesh_name))
+            # node_data = np.zeros(3)
+            node_data_x = has_data_original['ux']
+            node_data_y = has_data_original['uy']
+            node_data_p = has_data_original['p']
 
-                #     if j == 0:
-                #         node_data_list = np.array([node_data])
-                #     else:
-                #         node_data_list = np.append(node_data_list, np.array([node_data]), axis=0)
+            node_data_list = np.concatenate((node_data_x, node_data_y, node_data_p), axis=1)
+            # for j in range(len(mesh_data['x'])):
+            #     node_data[0] = has_data_original['ux'][j]
+            #     node_data[1] = has_data_original['uy'][j]
+            #     node_data[2] = has_data_original['p'][j]
 
-                node_data_list = torch.tensor(node_data_list, dtype=torch.float)
-                edge_index = np.array(mesh_data['edges'])
-                edge_index = torch.tensor(edge_index, dtype=torch.long)
-                edge_attr = np.array(mesh_data['edge_properties'])
-                edge_attr = torch.tensor(edge_attr, dtype=torch.float)
+            #     if j == 0:
+            #         node_data_list = np.array([node_data])
+            #     else:
+            #         node_data_list = np.append(node_data_list, np.array([node_data]), axis=0)
 
-                node_pos_x = mesh_data['x']
-                node_pos_y = mesh_data['y']
-                node_pos_list = np.concatenate((node_pos_x, node_pos_y), axis=1)
-                # node_pos = np.zeros(2)
-                # for j in range(len(mesh_data['x'])):
-                #     node_pos[0] = mesh_data['x'][j]
-                #     node_pos[1] = mesh_data['y'][j]
+            node_data_list = torch.tensor(node_data_list, dtype=torch.float)
+            edge_index = np.array(mesh_data['edges'])
+            edge_index = torch.tensor(edge_index, dtype=torch.long)
+            edge_attr = np.array(mesh_data['edge_properties'])
+            edge_attr = torch.tensor(edge_attr, dtype=torch.float)
 
-                #     if j == 0:
-                #         node_pos_list = np.array([node_pos])
-                #     else:
-                #         node_pos_list = np.append(node_pos_list, np.array([node_pos]), axis=0)
+            node_pos_x = mesh_data['x']
+            node_pos_y = mesh_data['y']
+            node_pos_list = np.concatenate((node_pos_x, node_pos_y), axis=1)
+            # node_pos = np.zeros(2)
+            # for j in range(len(mesh_data['x'])):
+            #     node_pos[0] = mesh_data['x'][j]
+            #     node_pos[1] = mesh_data['y'][j]
 
-                node_pos_list = torch.tensor(node_pos_list, dtype=torch.float)
+            #     if j == 0:
+            #         node_pos_list = np.array([node_pos])
+            #     else:
+            #         node_pos_list = np.append(node_pos_list, np.array([node_pos]), axis=0)
 
-                data_has = Data(x=node_data_list, edge_index=edge_index.t().contiguous(), edge_attr=edge_attr, pos=node_pos_list)
-                # print("has data process done")
-                data_name = str1 + '_' + str2 + '_' + str4
+            node_pos_list = torch.tensor(node_pos_list, dtype=torch.float)
 
-                grp_las = las_h5_file.create_group(data_name)
-                for key, item in data_las:
-                    grp_las.create_dataset(key, data=item.numpy(), compression="gzip", compression_opts=7)
-                # las_h5_file.flush()
+            # create a python dictionary to store the data
+            data_has = {'x': node_data_list, 'edge_index': edge_index.t().contiguous(), 'edge_attr': edge_attr, 'pos': node_pos_list}
+            # data_has = Data(x=node_data_list, edge_index=edge_index.t().contiguous(), edge_attr=edge_attr, pos=node_pos_list)
+            # print("has data process done")
+            # transform data into numpy array
+            data_las = np.array(data_las)
+            data_has = np.array(data_has)
 
-                grp_has = has_h5_file.create_group(data_name)
-                for key, item in data_has:
-                    grp_has.create_dataset(key, data=item.numpy(), compression="gzip", compression_opts=7)
-                # has_h5_file.flush()
-                # print("data save done")
-                # with progress.get_lock():
-                #     progress.value += 1
-                processed_file_count += 1
-                # update progress every 10 files
-                if processed_file_count % 10 == 0 and processed_file_count > 0:
-                    shared_progress_list.append("update")
+            # write las, has data to dset, with key being time step, and data being the data object
+            dset_las[time_step] = data_las
+            dset_has[time_step] = data_has
+            # has_h5_file.flush()
+            # print("data save done")
+            # with progress.get_lock():
+            #     progress.value += 1
+            processed_file_count += 1
+            # update progress every 10 files
+            if processed_file_count % 10 == 0 and processed_file_count > 0:
+                shared_progress_list.append("update")
 
 
 def update_progress(shared_progress_list, total_data):

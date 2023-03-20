@@ -34,20 +34,16 @@ class MegaFlow2D(Dataset):
         if download:
             self.download()
         self.raw_data_dir = os.path.join(self.root, 'raw')
-        self.processed_las_data_dir = os.path.join(self.root, 'processed', 'las')
-        self.processed_has_data_dir = os.path.join(self.root, 'processed', 'has')
-        # check if data.h5 exists, if yes, return the list of keys as data_list, else return []
-        if os.path.exists(os.path.join(self.processed_las_data_dir, 'data.h5')):
-            with h5py.File(os.path.join(self.processed_las_data_dir, 'data.h5'), 'r') as f:
-                self.data_list = list(f.keys())
-        else:
-            self.data_list = []
+        self.data_list = self.get_data_list
+        self.processed_data_dir = os.path.join(self.root, 'processed')
+        # self.processed_las_data_dir = os.path.join(self.root, 'processed', 'las')
+        # self.processed_has_data_dir = os.path.join(self.root, 'processed', 'has')
         
         if not self.is_processed:
             self.process()
 
-        self.circle_data_list = [name for name in self.data_list if name.split('_')[1] == 'circle']
-        self.ellipse_data_list = [name for name in self.data_list if name.split('_')[1] == 'ellipse']
+        self.circle_data_list = [name for name in self.data_list if name.split('_')[0] == 'circle']
+        self.ellipse_data_list = [name for name in self.data_list if name.split('_')[0] == 'ellipse']
 
         # self.circle_low_res_data_list = [name for name in self.data_list if name.split('_')[0] == 'las']
         # self.high_res_data_list = [name for name in self.data_list if name.split('_')[0] == 'has']
@@ -57,7 +53,7 @@ class MegaFlow2D(Dataset):
         # self.mesh_data_list = os.listdir(os.path.join(self.raw_data_dir, 'mesh'))
         self.split_scheme = split_scheme
         if self.split_scheme == 'full':
-            self.data_list = self.processed_file_names
+            self.data_list = self.data_list
         elif self.split_scheme == 'circle':
             self.data_list = self.circle_data_list
         elif self.split_scheme == 'ellipse':
@@ -75,27 +71,38 @@ class MegaFlow2D(Dataset):
 
     @property
     def processed_file_names(self):
-        if os.path.exists(self.processed_las_data_dir):
-            return os.listdir(self.processed_las_data_dir)
+        if os.path.exists(self.processed_data_dir):
+            return os.listdir(self.processed_data_dir)
         else:
             return []
 
     @property
     def is_processed(self):
-        if os.path.exists(self.processed_las_data_dir):
+        if os.path.exists(self.processed_data_dir):
             if len(self.processed_file_names) == 0:
                 return False
             else:
                 return True
         else:
             return False
+        
+    @property
+    def get_data_list(self):
+        # process raw file names into geometry_index_timestep format, save the list in data_list
+        raw_file_names = self.raw_file_names
+        _data_list = []
+        for file_name in raw_file_names:
+            str1, str2, str3, str4 = file_name.split('_')
+            str4 = str4.split('.')[0]
+            _data_list.append(str1 + '_' + str2 + '_' + str4)
+
+        return _data_list
     
     def len(self):
         if not self.is_processed:
             return 0
         else:
-            with h5py.File(os.path.join(self.processed_las_data_dir, 'data.h5'), 'r') as f:
-                return len(f.keys())
+            return len(self.data_list)
 
     def download(self):
         url = 'https://huggingface.co/datasets/cmudrc/MegaFlow2D/resolve/main/data.zip'
@@ -104,8 +111,8 @@ class MegaFlow2D(Dataset):
 
     def process(self):
         # Read mesh solution into graph structure
-        os.makedirs(self.processed_las_data_dir, exist_ok=True)
-        os.makedirs(self.processed_has_data_dir, exist_ok=True)
+        os.makedirs(self.processed_data_dir, exist_ok=True)
+        # os.makedirs(self.processed_has_data_dir, exist_ok=True)
         las_data_list = os.listdir(os.path.join(self.raw_data_dir, 'las'))
         has_data_list = os.listdir(os.path.join(self.raw_data_dir, 'has'))
         # has_original_data_list = os.listdir(os.path.join(self.raw_data_dir, 'has_original'))
@@ -140,14 +147,14 @@ class MegaFlow2D(Dataset):
         progress_thread.join()
 
         # merge the data
-        input_file_las = [os.path.join(self.processed_las_data_dir, 'data_{}.h5'.format(i)) for i in range(num_proc)]
-        input_file_has = [os.path.join(self.processed_has_data_dir, 'data_{}.h5'.format(i)) for i in range(num_proc)]
-        output_file_las = os.path.join(self.processed_las_data_dir, 'data.h5')
-        output_file_has = os.path.join(self.processed_has_data_dir, 'data.h5')
-        self.merge_hdf5_files(input_file_las, output_file_las)
-        self.merge_hdf5_files(input_file_has, output_file_has)
+        input_file = [os.path.join(self.processed_data_dir, 'data_{}.h5'.format(i)) for i in range(num_proc)]
+        # input_file_has = [os.path.join(self.processed_has_data_dir, 'data_{}.h5'.format(i)) for i in range(num_proc)]
+        output_file = os.path.join(self.processed_data_dir, 'data.h5')
+        # output_file_has = os.path.join(self.processed_has_data_dir, 'data.h5')
+        self.merge_hdf5_files(input_file, output_file)
+        # self.merge_hdf5_files(input_file_has, output_file_has)
         # redo data list
-        with h5py.File(os.path.join(self.processed_las_data_dir, 'data.h5'), 'r') as f:
+        with h5py.File(os.path.join(self.processed_data_dir, 'data.h5'), 'r') as f:
             self.data_list = list(f.keys())
         
     def transform(self, data):
@@ -161,15 +168,15 @@ class MegaFlow2D(Dataset):
 
     def get(self, idx):
         data_name = self.data_list[idx]
-        with h5py.File(os.path.join(self.processed_las_data_dir, 'data.h5'), 'r') as f:
-            grp = f[data_name]
-            loaded_data_dict = {key: torch.tensor(grp[key][:]) for key in grp.keys()}
-            data_l = Data.from_dict(loaded_data_dict)
-
-        with h5py.File(os.path.join(self.processed_has_data_dir, 'data.h5'), 'r') as f:
-            grp = f[data_name]
-            loaded_data_dict = {key: torch.tensor(grp[key][:]) for key in grp.keys()}
-            data_h = Data.from_dict(loaded_data_dict)
+        str1, str2, str3 = data_name.split('_')
+        mesh_name = str1 + '_' + str2
+        time_step = int(str3)
+        with h5py.File(os.path.join(self.processed_data_dir, 'data.h5'), 'r') as f:
+            grp = f[mesh_name]
+            dset_las = grp['las']
+            dset_has = grp['has']
+            data_l = Data.from_dict(dset_las[time_step])
+            data_h = Data.from_dict(dset_has[time_step])
 
         if self.transforms is not None:
             data_l = self.transform(data_l)
