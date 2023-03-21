@@ -33,7 +33,7 @@ In theory, searching through the dataset can have a complexity of O(1) due to th
 The MegaFlow package provides a simple interface for initializing and loading the dataset. 
 
 ```py
-from megaflow.dataset import MegaFlow2D
+from megaflow.dataset.MegaFlow2D import MegaFlow2D
 
 if __name__ == '__main__':
     dataset = MegaFlow2D(root='/path/to/your/directory', download=True, transform='normalize', pre_transform=None, split_scheme='mixed', split_ratio=0.8)
