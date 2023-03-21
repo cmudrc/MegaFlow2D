@@ -19,11 +19,11 @@ def process_file_list(data_list):
     raw_data_dir = data_list[0]
     save_dir = data_list[1]
     # has_save_dir = data_list[2]
-    las_data_list = data_list[3]
-    has_data_list = data_list[4]
+    las_data_list = data_list[2]
+    has_data_list = data_list[3]
     # has_original_data_list = data_list[5]
-    index = data_list[5]
-    shared_progress_list = data_list[6]
+    index = data_list[4]
+    shared_progress_list = data_list[5]
     processed_file_count = 0
     with h5py.File(os.path.join(save_dir, 'data_{}.h5'.format(index)), 'a') as f:
         # with h5py.File(os.path.join(has_save_dir, 'data_{}.h5'.format(index)), 'a') as has_h5_file:
@@ -32,17 +32,18 @@ def process_file_list(data_list):
             str1, str2, str3, str4 = las_data_name.split('_')
             str4 = str4.split('.')[0]
             mesh_name = str1 + '_' + str2
-            time_step = int(str4)
 
             # check if the mesh type is in the h5 file, if not, create a group for it
-            if f[mesh_name] is None:
-                grp = f.create_group(mesh_name)
-                dset_las = grp.create_dataset('las', shape=(1000, 1), maxshape=None, chunks=True, compression='gzip', compression_opts=7)
-                dset_has = grp.create_dataset('has', shape=(1000, 1), maxshape=None, chunks=True, compression='gzip', compression_opts=7)
-            else:
+            try:
                 grp = f[mesh_name]
-                dset_las = grp.require_dataset('las')
-                dset_has = grp.require_dataset('has')
+                grp_time = grp[str4]
+                grp_las = grp_time['las']
+                grp_has = grp_time['has']
+            except KeyError:
+                grp = f.require_group(mesh_name)
+                grp_time = grp.require_group(str4)
+                grp_las = grp_time.require_group('las')
+                grp_has = grp_time.require_group('has')
             
             # process las graph
             las_data = np.load(os.path.join(raw_data_dir, 'las', las_data_name))
@@ -63,8 +64,8 @@ def process_file_list(data_list):
             val_data_y = has_data['uy']
             val_data_p = has_data['p']
 
-            node_data_list = np.concatenate((node_data_x, node_data_y, node_data_p), axis=1)
-            val_data_list = np.concatenate((val_data_x, val_data_y, val_data_p), axis=1)
+            node_data_list = np.column_stack((node_data_x, node_data_y, node_data_p))
+            val_data_list = np.column_stack((val_data_x, val_data_y, val_data_p))
             # for j in range(len(mesh_data['x'])):
             #     node_data[0] = las_data['ux'][j]
             #     node_data[1] = las_data['uy'][j]
@@ -93,7 +94,7 @@ def process_file_list(data_list):
             # node_pos = np.zeros(2)
             node_pos_x = mesh_data['x']
             node_pos_y = mesh_data['y']
-            node_pos_list = np.concatenate((node_pos_x, node_pos_y), axis=1)
+            node_pos_list = np.column_stack((node_pos_x, node_pos_y))
             # for j in range(len(mesh_data['x'])):
             #     node_pos[0] = mesh_data['x'][j]
             #     node_pos[1] = mesh_data['y'][j]
@@ -106,8 +107,8 @@ def process_file_list(data_list):
             node_pos_list = torch.tensor(node_pos_list, dtype=torch.float)
 
             # create a python dictionary to store the data
-            data_las = {'x': node_data_list, 'y': val_data_list, 'edge_index': edge_index.t().contiguous(), 'edge_attr': edge_attr, 'pos': node_pos_list}
-            # data_las = Data(x=node_data_list, y=val_data_list, edge_index=edge_index.t().contiguous(), edge_attr=edge_attr, pos=node_pos_list)
+            # data_las = {'x': node_data_list, 'y': val_data_list, 'edge_index': edge_index.t().contiguous(), 'edge_attr': edge_attr, 'pos': node_pos_list}
+            data_las = Data(x=node_data_list, y=val_data_list, edge_index=edge_index.t().contiguous(), edge_attr=edge_attr, pos=node_pos_list)
             # print("las data process done")
             # process has graph
             has_data_original = np.load(os.path.join(raw_data_dir, 'has_original', has_data_name))
@@ -117,7 +118,7 @@ def process_file_list(data_list):
             node_data_y = has_data_original['uy']
             node_data_p = has_data_original['p']
 
-            node_data_list = np.concatenate((node_data_x, node_data_y, node_data_p), axis=1)
+            node_data_list = np.column_stack((node_data_x, node_data_y, node_data_p))
             # for j in range(len(mesh_data['x'])):
             #     node_data[0] = has_data_original['ux'][j]
             #     node_data[1] = has_data_original['uy'][j]
@@ -136,7 +137,7 @@ def process_file_list(data_list):
 
             node_pos_x = mesh_data['x']
             node_pos_y = mesh_data['y']
-            node_pos_list = np.concatenate((node_pos_x, node_pos_y), axis=1)
+            node_pos_list = np.column_stack((node_pos_x, node_pos_y))
             # node_pos = np.zeros(2)
             # for j in range(len(mesh_data['x'])):
             #     node_pos[0] = mesh_data['x'][j]
@@ -150,16 +151,15 @@ def process_file_list(data_list):
             node_pos_list = torch.tensor(node_pos_list, dtype=torch.float)
 
             # create a python dictionary to store the data
-            data_has = {'x': node_data_list, 'edge_index': edge_index.t().contiguous(), 'edge_attr': edge_attr, 'pos': node_pos_list}
-            # data_has = Data(x=node_data_list, edge_index=edge_index.t().contiguous(), edge_attr=edge_attr, pos=node_pos_list)
+            # data_has = {'x': node_data_list, 'edge_index': edge_index.t().contiguous(), 'edge_attr': edge_attr, 'pos': node_pos_list}
+            data_has = Data(x=node_data_list, edge_index=edge_index.t().contiguous(), edge_attr=edge_attr, pos=node_pos_list)
             # print("has data process done")
-            # transform data into numpy array
-            data_las = np.array(data_las)
-            data_has = np.array(data_has)
 
             # write las, has data to dset, with key being time step, and data being the data object
-            dset_las[time_step] = data_las
-            dset_has[time_step] = data_has
+            for key, value in data_las:
+                grp_las.create_dataset(key, data=value.numpy(), compression="gzip", compression_opts=9, chunks=True)
+            for key, value in data_has:
+                grp_has.create_dataset(key, data=value.numpy(), compression="gzip", compression_opts=9, chunks=True)
             # has_h5_file.flush()
             # print("data save done")
             # with progress.get_lock():
@@ -168,11 +168,14 @@ def process_file_list(data_list):
             # update progress every 10 files
             if processed_file_count % 10 == 0 and processed_file_count > 0:
                 shared_progress_list.append("update")
+        
+        # update progress 
+        shared_progress_list.append("update")
 
 
 def update_progress(shared_progress_list, total_data):
     with tqdm(total=total_data) as pbar:
-        while len(shared_progress_list) * 10 < total_data - 10:
+        while len(shared_progress_list) * 10 < total_data:
             current_len = len(shared_progress_list) * 10
             pbar.update(current_len - pbar.n)
             time.sleep(1)

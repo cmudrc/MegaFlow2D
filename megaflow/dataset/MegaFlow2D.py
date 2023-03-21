@@ -67,7 +67,7 @@ class MegaFlow2D(Dataset):
 
     @property
     def raw_file_names(self):
-        return os.listdir(self.raw_data_dir)
+        return os.listdir(os.path.join(self.raw_data_dir, 'las'))
 
     @property
     def processed_file_names(self):
@@ -130,7 +130,7 @@ class MegaFlow2D(Dataset):
         manager = mp.Manager()
         shared_progress_list = manager.list()
         for i in range(num_proc):
-            data_list.append([self.raw_data_dir, self.processed_las_data_dir, self.processed_has_data_dir, las_data_list[i], has_data_list[i], i, shared_progress_list])
+            data_list.append([self.raw_data_dir, self.processed_data_dir, las_data_list[i], has_data_list[i], i, shared_progress_list])
 
         # start the progress bar
         progress_thread = Thread(target=update_progress, args=(shared_progress_list, data_len))
@@ -170,13 +170,15 @@ class MegaFlow2D(Dataset):
         data_name = self.data_list[idx]
         str1, str2, str3 = data_name.split('_')
         mesh_name = str1 + '_' + str2
-        time_step = int(str3)
         with h5py.File(os.path.join(self.processed_data_dir, 'data.h5'), 'r') as f:
             grp = f[mesh_name]
-            dset_las = grp['las']
-            dset_has = grp['has']
-            data_l = Data.from_dict(dset_las[time_step])
-            data_h = Data.from_dict(dset_has[time_step])
+            grp_time = grp[str3]
+            grp_las = grp_time['las']
+            grp_has = grp_time['has']
+            las_data_dict = {key: torch.tensor(grp_las[key]) for key in grp_las.keys()}
+            has_data_dict = {key: torch.tensor(grp_has[key]) for key in grp_has.keys()}
+            data_l = Data.from_dict(las_data_dict)
+            data_h = Data.from_dict(has_data_dict)
 
         if self.transforms is not None:
             data_l = self.transform(data_l)
@@ -192,17 +194,29 @@ class MegaFlow2D(Dataset):
             data = self.transform(data)
         return data, data_name
     
-    @ property
-    def merge_hdf5_files(input_files, output_file):
-        with h5py.File(output_file, 'w') as out_f:
-            for input_file in input_files:
-                with h5py.File(input_file, 'r') as in_f:
-                    for key in in_f.keys():
-                        in_f.copy(key, out_f)
+    @property
+    def copy_group(self, src_group, dst_group):
+        for key in src_group.keys():
+            src_item = src_group[key]
+            if isinstance(src_item, h5py.Group):
+                # Create a subgroup in the destination group if it doesn't exist
+                if key not in dst_group:
+                    dst_group.create_group(key)
+                dst_subgroup = dst_group[key]
+                self.copy_group(src_item, dst_subgroup)
+            else:
+                src_group.copy(key, dst_group)
 
-        # Remove the input files after merging
-        for input_file in input_files:
-            os.remove(input_file)
+    @property
+    def merge_hdf5_files(self, input_files, output_file):
+        with h5py.File(output_file, 'w') as output_h5:
+            for input_file in input_files:
+                with h5py.File(input_file, 'r') as input_h5:
+                    self.copy_group(input_h5, output_h5)
+
+            # Remove the input files after merging
+            for input_file in input_files:
+                os.remove(input_file)
 
 
 class MegaFlow2DSubset(MegaFlow2D):
