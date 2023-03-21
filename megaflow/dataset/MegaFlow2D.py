@@ -193,8 +193,8 @@ class MegaFlow2D(Dataset):
             grp_time = grp[str3]
             grp_las = grp_time['las']
             grp_has = grp_time['has']
-            las_data_dict = {key: torch.tensor(grp_las[key]) for key in grp_las.keys()}
-            has_data_dict = {key: torch.tensor(grp_has[key]) for key in grp_has.keys()}
+            las_data_dict = {key: torch.tensor(grp_las[key][:]) for key in grp_las.keys()}
+            has_data_dict = {key: torch.tensor(grp_has[key][:]) for key in grp_has.keys()}
             data_l = Data.from_dict(las_data_dict)
             data_h = Data.from_dict(has_data_dict)
 
