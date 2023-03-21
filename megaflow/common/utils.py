@@ -202,7 +202,6 @@ def merge_hdf5_files(input_files, output_file):
         for input_file in input_files:
             with h5py.File(input_file, 'r') as input_h5:
                 copy_group(input_h5, output_h5)
-
-        # Remove the input files after merging
-        for input_file in input_files:
+            # remove the input file once it's copied
             os.remove(input_file)
+            
