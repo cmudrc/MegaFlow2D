@@ -16,6 +16,18 @@ pip install MegaFlow2D
 
 Running `pip install` would automatically configure package dependencies, however to build graphical models [torch-geometric](https://pytorch-geometric.readthedocs.io/en/latest/) needs to be installed manually.
 
+## Dataset structure
+The entire dataset is stored inside a single HDF5 file. Although multiple HDF5 files are created during processing depending on the number of processing cores used to avoid data corruption while concurrently writing to a single file. The reading operation, however, can be done concurrently as long as all operations are restricted in `r` mode. The dataset is stored in a hierarchical structure, and each group is indexed by the geometry type, mesh resolution and time step. The dataset object is stored as a `h5py.dataset` object under each group. The dataset structure is shown below:
+```bash
+├── MegaFlow2D
+│   ├── <geometry_type>_<geometry_index>
+│   │   ├── <mesh_resolution>
+│   │   │   ├── <time_step>
+│   │   │   │   ├── dataset
+
+```
+In theory, searching through the dataset can have a complexity of O(1) due to the B-tree structure of HDF5 to allow for fast data retrieval in training loading process. However, the process might be slowed down by the auto decompression of the dataset. This may be improved by reprocessing the dataset with a different compression setting in `utils.py`. Please keep in mind that reprocessing the dataset can take several hours depending on the number of cores used.
+
 ## Using the MegaFlow package
 
 The MegaFlow package provides a simple interface for initializing and loading the dataset. 
@@ -24,13 +36,13 @@ The MegaFlow package provides a simple interface for initializing and loading th
 from megaflow.dataset import MegaFlow2D
 
 if __name__ == '__main__':
-    dataset = MegaFlow2D(root='/path/to/your/directory', download=True)
+    dataset = MegaFlow2D(root='/path/to/your/directory', download=True, transform='normalize', pre_transform=None, split_scheme='mixed', split_ratio=0.8)
     # if the dataset is not processed, the process function will be called automatically. 
     # to facilitate multi-thread processing, be sure to exceute the process function in '__main__'.
 
     # get one sample
-    sample = dataset.get(0)
-    print('Number of nodes: {}, number of edges: {}'.format(sample.num_nodes, sample.num_edges))
+    sample_low, sample_high = dataset.get(0)
+    print('Number of nodes: {}, number of edges: {}'.format(sample_low.num_nodes, sample_low.num_edges))
 ```
 
 ## Using the example scripts
