@@ -1,16 +1,17 @@
 import os
-import sys
-import time
+from typing import Union
+from collections.abc import Sequence
 import multiprocessing as mp
 from threading import Thread
 import h5py
-from tqdm import tqdm
 
 import torch
+from torch import Tensor
 from torch_geometric.data import Data, Dataset, download_url, extract_zip
 import numpy as np
 from megaflow.common.utils import process_file_list, update_progress, copy_group, merge_hdf5_files
 
+IndexType = Union[slice, Tensor, np.ndarray, Sequence]
 
 class MegaFlow2D(Dataset):
     """
@@ -33,16 +34,14 @@ class MegaFlow2D(Dataset):
         self.pre_transform = pre_transform
         if download:
             self.download()
-        self.raw_data_dir = os.path.join(self.root, 'raw')
         self.data_list = self.get_data_list
-        self.processed_data_dir = os.path.join(self.root, 'processed')
         # self.processed_las_data_dir = os.path.join(self.root, 'processed', 'las')
         # self.processed_has_data_dir = os.path.join(self.root, 'processed', 'has')
         
         if not self.is_processed:
             self.process()
-        # input_file = [os.path.join(self.processed_data_dir, 'data_{}.h5'.format(i)) for i in range(24)]
-        # merge_hdf5_files(input_files=input_file, output_file=os.path.join(self.processed_data_dir, 'data.h5'))
+        # input_file = [os.path.join(self.processed_dir, 'data_{}.h5'.format(i)) for i in range(24)]
+        # merge_hdf5_files(input_files=input_file, output_file=os.path.join(self.processed_dir, 'data.h5'))
 
         self.circle_data_list = [name for name in self.data_list if name.split('_')[0] == 'circle']
         self.ellipse_data_list = [name for name in self.data_list if name.split('_')[0] == 'ellipse']
@@ -50,9 +49,9 @@ class MegaFlow2D(Dataset):
         # self.circle_low_res_data_list = [name for name in self.data_list if name.split('_')[0] == 'las']
         # self.high_res_data_list = [name for name in self.data_list if name.split('_')[0] == 'has']
 
-        # self.las_data_list = os.listdir(os.path.join(self.raw_data_dir, 'las'))
-        # self.has_data_list = os.listdir(os.path.join(self.raw_data_dir, 'has'))
-        # self.mesh_data_list = os.listdir(os.path.join(self.raw_data_dir, 'mesh'))
+        # self.las_data_list = os.listdir(os.path.join(self.raw_dir, 'las'))
+        # self.has_data_list = os.listdir(os.path.join(self.raw_dir, 'has'))
+        # self.mesh_data_list = os.listdir(os.path.join(self.raw_dir, 'mesh'))
         self.split_scheme = split_scheme
         if self.split_scheme == 'full':
             self.data_list = self.data_list
@@ -69,18 +68,18 @@ class MegaFlow2D(Dataset):
 
     @property
     def raw_file_names(self):
-        return os.listdir(os.path.join(self.raw_data_dir, 'las'))
+        return os.listdir(os.path.join(self.raw_dir, 'las'))
 
     @property
     def processed_file_names(self):
-        if os.path.exists(self.processed_data_dir):
-            return os.listdir(self.processed_data_dir)
+        if os.path.exists(self.processed_dir):
+            return os.listdir(self.processed_dir)
         else:
             return []
 
     @property
     def is_processed(self):
-        if os.path.exists(self.processed_data_dir):
+        if os.path.exists(self.processed_dir):
             if len(self.processed_file_names) == 0:
                 return False
             else:
@@ -113,13 +112,13 @@ class MegaFlow2D(Dataset):
 
     def process(self):
         # Read mesh solution into graph structure
-        os.makedirs(self.processed_data_dir, exist_ok=True)
+        os.makedirs(self.processed_dir, exist_ok=True)
         # os.makedirs(self.processed_has_data_dir, exist_ok=True)
-        las_data_list = os.listdir(os.path.join(self.raw_data_dir, 'las'))
-        has_data_list = os.listdir(os.path.join(self.raw_data_dir, 'has'))
-        # has_original_data_list = os.listdir(os.path.join(self.raw_data_dir, 'has_original'))
+        las_data_list = os.listdir(os.path.join(self.raw_dir, 'las'))
+        has_data_list = os.listdir(os.path.join(self.raw_dir, 'has'))
+        # has_original_data_list = os.listdir(os.path.join(self.raw_dir, 'has_original'))
         data_len = len(las_data_list)
-        # mesh_data_list = os.listdir(os.path.join(self.raw_data_dir, 'mesh'))
+        # mesh_data_list = os.listdir(os.path.join(self.raw_dir, 'mesh'))
         # split the list according to the number of processors and process the data in parallel
         num_proc = mp.cpu_count()
         las_data_list = np.array_split(las_data_list, num_proc)
@@ -132,7 +131,7 @@ class MegaFlow2D(Dataset):
         manager = mp.Manager()
         shared_progress_list = manager.list([0] * num_proc)
         for i in range(num_proc):
-            data_list.append([self.raw_data_dir, self.processed_data_dir, las_data_list[i], has_data_list[i], i, shared_progress_list])
+            data_list.append([self.raw_dir, self.processed_dir, las_data_list[i], has_data_list[i], i, shared_progress_list])
 
         # start the progress bar
         progress_thread = Thread(target=update_progress, args=(shared_progress_list, data_len))
@@ -149,9 +148,9 @@ class MegaFlow2D(Dataset):
         progress_thread.join()
 
         # merge the data
-        input_file = [os.path.join(self.processed_data_dir, 'data_{}.h5'.format(i)) for i in range(num_proc)]
+        input_file = [os.path.join(self.processed_dir, 'data_{}.h5'.format(i)) for i in range(num_proc)]
         # input_file_has = [os.path.join(self.processed_has_data_dir, 'data_{}.h5'.format(i)) for i in range(num_proc)]
-        output_file = os.path.join(self.processed_data_dir, 'data.h5')
+        output_file = os.path.join(self.processed_dir, 'data.h5')
         # output_file_has = os.path.join(self.processed_has_data_dir, 'data.h5')
         merge_hdf5_files(input_files=input_file, output_file=output_file)
         # self.merge_hdf5_files(input_file_has, output_file_has)
@@ -170,25 +169,7 @@ class MegaFlow2D(Dataset):
         data_name = self.data_list[idx]
         str1, str2, str3 = data_name.split('_')
         mesh_name = str1 + '_' + str2
-        with h5py.File(os.path.join(self.processed_data_dir, 'data.h5'), 'r') as f:
-            grp = f[mesh_name]
-            grp_time = grp[str3]
-            grp_las = grp_time['las']
-            grp_has = grp_time['has']
-            las_data_dict = {key: torch.tensor(grp_las[key]) for key in grp_las.keys()}
-            has_data_dict = {key: torch.tensor(grp_has[key]) for key in grp_has.keys()}
-            data_l = Data.from_dict(las_data_dict)
-            data_h = Data.from_dict(has_data_dict)
-
-        if self.transforms is not None:
-            data_l = self.transform(data_l)
-        return data_l, data_h
-
-    def get_eval(self, idx):
-        data_name = self.data_list[idx]
-        str1, str2, str3 = data_name.split('_')
-        mesh_name = str1 + '_' + str2
-        with h5py.File(os.path.join(self.processed_data_dir, 'data.h5'), 'r') as f:
+        with h5py.File(os.path.join(self.processed_dir, 'data.h5'), 'r') as f:
             grp = f[mesh_name]
             grp_time = grp[str3]
             grp_las = grp_time['las']
@@ -197,10 +178,41 @@ class MegaFlow2D(Dataset):
             has_data_dict = {key: torch.tensor(grp_has[key][:]) for key in grp_has.keys()}
             data_l = Data.from_dict(las_data_dict)
             data_h = Data.from_dict(has_data_dict)
+        # if self.transforms is not None:
+        #     data_l = self.transform(data_l)
+            
+        return data_l, data_h
+    
+    def __getitem__(
+        self,
+        idx: Union[int, np.integer, IndexType],
+    ) -> Union['Dataset', Data]:
+        r"""In case :obj:`idx` is of type integer, will return the data object
+        at index :obj:`idx` (and transforms it in case :obj:`transform` is
+        present).
+        In case :obj:`idx` is a slicing object, *e.g.*, :obj:`[2:5]`, a list, a
+        tuple, or a :obj:`torch.Tensor` or :obj:`np.ndarray` of type long or
+        bool, will return a subset of the dataset at the specified indices."""
+        if (isinstance(idx, (int, np.integer))
+                or (isinstance(idx, Tensor) and idx.dim() == 0)
+                or (isinstance(idx, np.ndarray) and np.isscalar(idx))):
 
-        if self.transforms is not None:
-            data_l = self.transform(data_l)
-        return data_l, data_h, data_name
+            data_l, data_h = self.get(self.indices()[idx])
+            data_l = data_l if self.transform is None else self.transform(data_l)
+            return data_l, data_h
+
+        else:
+            return self.index_select(idx)
+
+    def get_eval(self, idx):
+        # same as get, but returns data name as well
+        data = torch.load(os.path.join(self.processed_dir, self.data_list[idx]))
+        str1, str2, str4 = self.data_list[idx].split('_')
+        data_name = str1 + '_' + str2 + '_' + str4
+
+        if self.transform is not None:
+            data = self.transform(data)
+        return data, data_name
 
 
 class MegaFlow2DSubset(MegaFlow2D):
