@@ -167,15 +167,42 @@ def process_file_list(data_list):
             processed_file_count += 1
             # update progress every 10 files
             if processed_file_count % 10 == 0 and processed_file_count > 0:
-                shared_progress_list.append("update")
+                shared_progress_list[index] = processed_file_count
         
         # update progress 
-        shared_progress_list.append("update")
+        shared_progress_list[index] = processed_file_count
+
+    # print("process done")
+    return 0
 
 
 def update_progress(shared_progress_list, total_data):
     with tqdm(total=total_data) as pbar:
-        while len(shared_progress_list) * 10 < total_data:
-            current_len = len(shared_progress_list) * 10
+        while np.sum(np.array(shared_progress_list)) < total_data - 1:
+            current_len = np.sum(np.array(shared_progress_list))
             pbar.update(current_len - pbar.n)
             time.sleep(1)
+
+
+def copy_group(src_group, dst_group):
+    for key in src_group.keys():
+        src_item = src_group[key]
+        if isinstance(src_item, h5py.Group):
+            # Create a subgroup in the destination group if it doesn't exist
+            if key not in dst_group:
+                dst_group.create_group(key)
+            dst_subgroup = dst_group[key]
+            copy_group(src_item, dst_subgroup)
+        else:
+            src_group.copy(key, dst_group)
+
+
+def merge_hdf5_files(input_files, output_file):
+    with h5py.File(output_file, 'a') as output_h5:
+        for input_file in input_files:
+            with h5py.File(input_file, 'r') as input_h5:
+                copy_group(input_h5, output_h5)
+
+        # Remove the input files after merging
+        for input_file in input_files:
+            os.remove(input_file)

@@ -9,7 +9,7 @@ from tqdm import tqdm
 import torch
 from torch_geometric.data import Data, Dataset, download_url, extract_zip
 import numpy as np
-from megaflow.common.utils import process_file_list, update_progress
+from megaflow.common.utils import process_file_list, update_progress, copy_group, merge_hdf5_files
 
 
 class MegaFlow2D(Dataset):
@@ -41,6 +41,8 @@ class MegaFlow2D(Dataset):
         
         if not self.is_processed:
             self.process()
+        # input_file = [os.path.join(self.processed_data_dir, 'data_{}.h5'.format(i)) for i in range(24)]
+        # merge_hdf5_files(input_files=input_file, output_file=os.path.join(self.processed_data_dir, 'data.h5'))
 
         self.circle_data_list = [name for name in self.data_list if name.split('_')[0] == 'circle']
         self.ellipse_data_list = [name for name in self.data_list if name.split('_')[0] == 'ellipse']
@@ -128,7 +130,7 @@ class MegaFlow2D(Dataset):
         data_list = []
         # progress = mp.Value('i', 0)
         manager = mp.Manager()
-        shared_progress_list = manager.list()
+        shared_progress_list = manager.list([0] * num_proc)
         for i in range(num_proc):
             data_list.append([self.raw_data_dir, self.processed_data_dir, las_data_list[i], has_data_list[i], i, shared_progress_list])
 
@@ -138,7 +140,7 @@ class MegaFlow2D(Dataset):
 
         # start the processes
         with mp.Pool(num_proc) as pool:
-            results = [pool.apply_async(process_file_list, args=([data_list[i]])) for i in range(num_proc - 1)]
+            results = [pool.apply_async(process_file_list, args=([data_list[i]])) for i in range(num_proc)]
 
             for result in results:
                 result.get()
@@ -151,11 +153,9 @@ class MegaFlow2D(Dataset):
         # input_file_has = [os.path.join(self.processed_has_data_dir, 'data_{}.h5'.format(i)) for i in range(num_proc)]
         output_file = os.path.join(self.processed_data_dir, 'data.h5')
         # output_file_has = os.path.join(self.processed_has_data_dir, 'data.h5')
-        self.merge_hdf5_files(input_file, output_file)
+        merge_hdf5_files(input_files=input_file, output_file=output_file)
         # self.merge_hdf5_files(input_file_has, output_file_has)
         # redo data list
-        with h5py.File(os.path.join(self.processed_data_dir, 'data.h5'), 'r') as f:
-            self.data_list = list(f.keys())
         
     def transform(self, data):
         if self.transforms == 'error_estimation':
@@ -185,38 +185,22 @@ class MegaFlow2D(Dataset):
         return data_l, data_h
 
     def get_eval(self, idx):
-        # same as get, but returns data name as well
-        data = torch.load(os.path.join(self.processed_data_dir, self.data_list[idx]))
-        str1, str2, str4 = self.data_list[idx].split('_')
-        data_name = str1 + '_' + str2 + '_' + str4
+        data_name = self.data_list[idx]
+        str1, str2, str3 = data_name.split('_')
+        mesh_name = str1 + '_' + str2
+        with h5py.File(os.path.join(self.processed_data_dir, 'data.h5'), 'r') as f:
+            grp = f[mesh_name]
+            grp_time = grp[str3]
+            grp_las = grp_time['las']
+            grp_has = grp_time['has']
+            las_data_dict = {key: torch.tensor(grp_las[key]) for key in grp_las.keys()}
+            has_data_dict = {key: torch.tensor(grp_has[key]) for key in grp_has.keys()}
+            data_l = Data.from_dict(las_data_dict)
+            data_h = Data.from_dict(has_data_dict)
 
-        if self.transform is not None:
-            data = self.transform(data)
-        return data, data_name
-    
-    @property
-    def copy_group(self, src_group, dst_group):
-        for key in src_group.keys():
-            src_item = src_group[key]
-            if isinstance(src_item, h5py.Group):
-                # Create a subgroup in the destination group if it doesn't exist
-                if key not in dst_group:
-                    dst_group.create_group(key)
-                dst_subgroup = dst_group[key]
-                self.copy_group(src_item, dst_subgroup)
-            else:
-                src_group.copy(key, dst_group)
-
-    @property
-    def merge_hdf5_files(self, input_files, output_file):
-        with h5py.File(output_file, 'w') as output_h5:
-            for input_file in input_files:
-                with h5py.File(input_file, 'r') as input_h5:
-                    self.copy_group(input_h5, output_h5)
-
-            # Remove the input files after merging
-            for input_file in input_files:
-                os.remove(input_file)
+        if self.transforms is not None:
+            data_l = self.transform(data_l)
+        return data_l, data_h, data_name
 
 
 class MegaFlow2DSubset(MegaFlow2D):
