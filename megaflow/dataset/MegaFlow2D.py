@@ -199,7 +199,7 @@ class MegaFlow2D(Dataset):
 
             data_l, data_h = self.get(self.indices()[idx])
             data_l = data_l if self.transform is None else self.transform(data_l)
-            return data_l, data_h
+            return (data_l, data_h)
 
         else:
             return self.index_select(idx)
