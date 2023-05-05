@@ -157,13 +157,14 @@ class MegaFlow2D(Dataset):
         # redo data list
         
     def transform(self, data):
+        (data_l, data_h) = data
         if self.transforms == 'error_estimation':
-            data.y = data.y - data.x
+            data_l.y = data_l.y - data_l.x
         if self.transforms == 'normalize':
             # normalize the data layer-wise via gaussian distribution
-            data.x = (data.x - data.x.mean(dim=0)) / (data.x.std(dim=0) + 1e-8)
-            data.y = (data.y - data.x.mean(dim=0)) / (data.x.std(dim=0) + 1e-8)
-        return data
+            data_l.x = (data_l.x - data_l.x.mean(dim=0)) / (data_l.x.std(dim=0) + 1e-8)
+            data_h.x = (data_h.y - data_l.x.mean(dim=0)) / (data_l.x.std(dim=0) + 1e-8)
+        return (data_l, data_h)
 
     def get(self, idx):
         data_name = self.data_list[idx]
@@ -205,14 +206,22 @@ class MegaFlow2D(Dataset):
             return self.index_select(idx)
 
     def get_eval(self, idx):
-        # same as get, but returns data name as well
-        data = torch.load(os.path.join(self.processed_dir, self.data_list[idx]))
-        str1, str2, str4 = self.data_list[idx].split('_')
-        data_name = str1 + '_' + str2 + '_' + str4
-
-        if self.transform is not None:
-            data = self.transform(data)
-        return data, data_name
+        data_name = self.data_list[idx]
+        str1, str2, str3 = data_name.split('_')
+        mesh_name = str1 + '_' + str2
+        with h5py.File(os.path.join(self.processed_dir, 'data.h5'), 'r') as f:
+            grp = f[mesh_name]
+            grp_time = grp[str3]
+            grp_las = grp_time['las']
+            grp_has = grp_time['has']
+            las_data_dict = {key: torch.tensor(grp_las[key][:]) for key in grp_las.keys()}
+            has_data_dict = {key: torch.tensor(grp_has[key][:]) for key in grp_has.keys()}
+            data_l = Data.from_dict(las_data_dict)
+            data_h = Data.from_dict(has_data_dict)
+        # if self.transforms is not None:
+        #     data_l = self.transform(data_l)
+            
+        return data_name, (data_l, data_h)
 
 
 class MegaFlow2DSubset(MegaFlow2D):
