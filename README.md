@@ -50,3 +50,16 @@ We provide an example script for training a super-resolution model on the MegaFl
 ```bash
 python examples/train.py --root /path/to/your/directory --dataset MegaFlow2D --tranform normalize --model FlowMLError --epochs 100 --batch_size 32 
 ```
+
+## Citing MegaFlow2D
+If you use MegaFlow2D in your research, please cite:
+```bibtex
+@InProceedings{xu2023,
+  author={Xu, Wenzhuo and Grande Gutiérrez, Noelia and McComb, Christopher},
+  booktitle={2023 IEEE Workshop on Design Automation for CPS and IoT (DESTION)}, 
+  title={MegaFlow2D: A Parametric Dataset for Machine Learning Super-resolution in Computational Fluid Dynamics Simulations}, 
+  year={2023},
+  pages={TBD},
+  doi={TBD}
+}
+```
