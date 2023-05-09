@@ -59,7 +59,7 @@ If you use MegaFlow2D in your research, please cite:
   booktitle={2023 IEEE Workshop on Design Automation for CPS and IoT (DESTION)}, 
   title={MegaFlow2D: A Parametric Dataset for Machine Learning Super-resolution in Computational Fluid Dynamics Simulations}, 
   year={2023},
-  pages={TBD},
-  doi={TBD}
+  pages={100-104},
+  doi={10.1145/3576914.3587552}
 }
 ```
