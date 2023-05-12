@@ -54,12 +54,21 @@ python examples/train.py --root /path/to/your/directory --dataset MegaFlow2D --t
 ## Citing MegaFlow2D
 If you use MegaFlow2D in your research, please cite:
 ```bibtex
-@InProceedings{xu2023,
-  author={Xu, Wenzhuo and Grande Gutiérrez, Noelia and McComb, Christopher},
-  booktitle={2023 IEEE Workshop on Design Automation for CPS and IoT (DESTION)}, 
-  title={MegaFlow2D: A Parametric Dataset for Machine Learning Super-resolution in Computational Fluid Dynamics Simulations}, 
-  year={2023},
-  pages={100-104},
-  doi={10.1145/3576914.3587552}
+@inproceedings{10.1145/3576914.3587552,
+author = {Xu, Wenzhuo and Grande Gutierrez, Noelia and McComb, Christopher},
+title = {MegaFlow2D: A Parametric Dataset for Machine Learning Super-Resolution in Computational Fluid Dynamics Simulations},
+year = {2023},
+isbn = {9798400700491},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/3576914.3587552},
+doi = {10.1145/3576914.3587552},
+abstract = {This paper introduces MegaFlow2D, a dataset of over 2 million snapshots of parameterized 2D fluid dynamics simulations of 3000 different external flow and internal flow configurations. It’s worth noting that, simulation results on both low and high mesh resolutions are provided to facilitate the training of machine learning (ML) models for super-resolution purposes. This is the first large-scale multi-fidelity fluid dynamics dataset ever provided. We build the entire data generation and simulation workflow on open-source and efficient interfaces that can be utilized for a variety of data samples according to the user’s specific needs. Finally, we provide a use case to demonstrate the potential value of the MegaFlow2D dataset in applications related to error correction.},
+booktitle = {Proceedings of Cyber-Physical Systems and Internet of Things Week 2023},
+pages = {100–104},
+numpages = {5},
+keywords = {datasets, neural networks, computational fluid dynamics, discretization error},
+location = {San Antonio, TX, USA},
+series = {CPS-IoT Week '23}
 }
 ```
