@@ -4,6 +4,7 @@ from collections.abc import Sequence
 import multiprocessing as mp
 from threading import Thread
 import h5py
+from zipfile import ZipFile
 
 import torch
 from torch import Tensor
@@ -33,7 +34,9 @@ class MegaFlow2D(Dataset):
         self.transforms = transform
         self.pre_transform = pre_transform
         if download:
-            self.download()
+            self.download() 
+            # give a warning that the package does not check the integrity of the downloaded data
+            Warning('The package does not check the integrity of the downloaded data. The downloading operation is always executed if the flag download is True. Please disable the download flag if you have already downloaded the data') 
         self.data_list = self.get_data_list
         # self.processed_las_data_dir = os.path.join(self.root, 'processed', 'las')
         # self.processed_has_data_dir = os.path.join(self.root, 'processed', 'has')
@@ -104,12 +107,27 @@ class MegaFlow2D(Dataset):
             return 0
         else:
             return len(self.data_list)
+        
+    def _extract_zip(self, path, folder):
+        zips = ["data.zip.00{}".format(i) for i in range(1, 6)]
+        
+        with open(os.path.join(path, "data.zip"), "ab") as f:
+            for zipName in zips:
+                with open(os.path.join(path, zipName), "rb") as z:
+                    f.write(z.read())
+
+                z.close()
+                os.remove(os.path.join(path, zipName))
+
+        with ZipFile(os.path.join(path, "data.zip"), "r") as zipObj:
+            zipObj.extractall(folder)
+        os.remove(os.path.join(path, "data.zip"))
 
     def download(self):
         for i in range(1, 6):
             url = 'https://huggingface.co/datasets/cmudrc/MegaFlow2D/resolve/main/data.zip.00{}'.format(i)
             path = download_url(url, self.root)
-        extract_zip(path, self.root)
+        self._extract_zip(self.root, self.root)
 
     def process(self):
         # Read mesh solution into graph structure
